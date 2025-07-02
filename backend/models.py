@@ -40,3 +40,4 @@ class CenterAccountDetails(db.Model):
     IFSC = db.Column(db.String, primary_key=True, nullable=False)
     BRANCH = db.Column(db.String, primary_key=True, nullable=False)
     AMOUNT = db.Column(db.Float, default=1)
+
