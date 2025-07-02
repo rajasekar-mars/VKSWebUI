@@ -233,7 +233,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
         </thead>
         <tbody>
           {filteredRows.map(row => {
-            const rowKey = getRowKey(row);
+            const rowKey = getRowKey(row, columns);
             return (
               <tr key={rowKey} className="border-b">
                 {columns.map(col => (
