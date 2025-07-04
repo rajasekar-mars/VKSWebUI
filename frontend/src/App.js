@@ -88,6 +88,9 @@ const TABLES = {
     columns: [
       { key: 'username', label: 'Username' },
       { key: 'role', label: 'Role' },
+      { key: 'MobileNumber', label: 'Mobile Number' },
+      { key: 'EmailID', label: 'Email ID' },
+      { key: 'AccessControl', label: 'Access Control' },
       { key: 'password', label: 'Password' }
     ],
     keyFields: ['username']

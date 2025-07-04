@@ -143,7 +143,10 @@ def user_to_dict(user):
     return {
         'id': user.id,
         'username': user.username,
-        'role': user.role
+        'role': user.role,
+        'MobileNumber': user.MobileNumber,
+        'EmailID': user.EmailID,
+        'AccessControl': user.AccessControl
     }
 
 @app.route('/api/employees', methods=['GET', 'POST'])
@@ -153,25 +156,40 @@ def employees():
         return jsonify({'error': 'Unauthorized'}), 403
     if request.method == 'GET':
         users = User.query.all()
-        # Show decrypted password for employees (not secure, for demo only)
-        from werkzeug.security import check_password_hash
         result = []
         for u in users:
-            # Try to guess the password (not possible to decrypt hash, so show placeholder)
             result.append({
                 'id': u.id,
                 'username': u.username,
                 'role': u.role,
+                'MobileNumber': u.MobileNumber,
+                'EmailID': u.EmailID,
+                'AccessControl': u.AccessControl,
                 'password': '(cannot decrypt hash)'
             })
         return jsonify(result)
     if request.method == 'POST':
         data = request.json
         hashed_pw = generate_password_hash(data['password'])
-        user = User(username=data['username'], password=hashed_pw, role=data['role'])
+        user = User(
+            username=data['username'],
+            password=hashed_pw,
+            role=data['role'],
+            MobileNumber=data['MobileNumber'],
+            EmailID=data['EmailID'],
+            AccessControl=data.get('AccessControl', 'NA')
+        )
         db.session.add(user)
         db.session.commit()
-        return jsonify({'id': user.id, 'username': user.username, 'role': user.role, 'password': '(cannot decrypt hash)'})
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'role': user.role,
+            'MobileNumber': user.MobileNumber,
+            'EmailID': user.EmailID,
+            'AccessControl': user.AccessControl,
+            'password': '(cannot decrypt hash)'
+        })
 
 @app.route('/api/employees/<int:user_id>', methods=['PUT', 'DELETE'])
 @login_required
