@@ -4,8 +4,15 @@ from . import app, db, login_manager
 from .models import User, Center, Collection, Sale, Account, CenterAccountDetails
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.exc import IntegrityError
+import random
+import time
+import requests
+from flask_cors import CORS
 
 # --- General improvements: docstrings, error handling, validation, status codes, security ---
+
+# Enable CORS
+CORS(app, supports_credentials=True)
 
 # Helper: error response
 def error_response(message, status=400, fields=None):
@@ -220,14 +227,10 @@ def employees():
             )
             db.session.add(user)
             db.session.commit()
-            return jsonify({
-                'id': user.id,
-                'username': user.username,
-                'role': user.role,
-                'MobileNumber': user.MobileNumber,
-                'EmailID': user.EmailID,
-                'AccessControl': user.AccessControl
-            }), 201
+            # Return the full list of users (as array) for frontend consistency
+            users = User.query.all()
+            result = [user_to_dict(u) for u in users]
+            return jsonify(result), 201
         except IntegrityError:
             db.session.rollback()
             return jsonify({'error': 'Username or email already exists'}), 409
@@ -352,3 +355,86 @@ def update_center_account_details(code, bank_acc_number, name, ifsc, branch):
         db.session.delete(acc)
         db.session.commit()
         return jsonify({'success': True}), 200
+
+# In-memory OTP store: {username: {otp, expires_at}}
+otp_store = {}
+
+# WhatsApp API config (for local WhatsApp Web bot)
+WHATSAPP_BOT_API_URL = 'http://localhost:3000/send-message'  # Change to your bot's endpoint
+
+# Helper: get admin's WhatsApp number from DB
+def get_admin_whatsapp_number():
+    admin = User.query.filter_by(username='admin').first()
+    if admin and hasattr(admin, 'MobileNumber'):
+        # Remove any + or spaces, just digits
+        return ''.join(filter(str.isdigit, str(admin.MobileNumber)))
+    return None
+
+# Helper: send WhatsApp message via local WhatsApp Web bot
+# Assumes your bot exposes POST /send-message with JSON: {"phone": "<number>", "message": "..."}
+def send_whatsapp_otp(admin_number, otp, employee_username):
+    message = f'OTP for {employee_username} login: {otp} (valid 60s)'
+    payload = {
+        'phone': admin_number,
+        'message': message
+    }
+    try:
+        resp = requests.post(WHATSAPP_BOT_API_URL, json=payload, timeout=10)
+        return resp.status_code == 200
+    except Exception as e:
+        print('WhatsApp bot send error:', e)
+        return False
+
+# Patch: always use admin's number from DB
+import functools
+
+def send_whatsapp_otp_to_admin(otp, employee_username):
+    admin_number = get_admin_whatsapp_number()
+    if not admin_number:
+        print('Admin WhatsApp number not found!')
+        return False
+    return send_whatsapp_otp(admin_number, otp, employee_username)
+
+@app.route('/api/login/request_otp', methods=['POST'])
+def request_otp():
+    """Step 1: Employee submits username/password, triggers OTP to admin's WhatsApp."""
+    data = request.json
+    if not data or 'username' not in data or 'password' not in data:
+        return error_response('Missing username or password', 400)
+    user = User.query.filter_by(username=data['username']).first()
+    if not user or not check_password_hash(user.password, data['password']):
+        return error_response('Invalid credentials', 401)
+    if user.role == 'admin':
+        # Admin can login directly
+        login_user(user)
+        return jsonify({'success': True, 'role': user.role, 'otp_required': False}), 200
+    # Employee: generate OTP, send to admin
+    otp = str(random.randint(100000, 999999))
+    expires_at = time.time() + 60
+    otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
+    sent = send_whatsapp_otp_to_admin(otp, user.username)
+    if not sent:
+        return error_response('Failed to send OTP to admin', 500)
+    return jsonify({'success': True, 'otp_required': True, 'message': 'OTP sent to admin. Ask admin for OTP.'}), 200
+
+@app.route('/api/login/verify_otp', methods=['POST'])
+def verify_otp():
+    """Step 2: Employee submits username + OTP. If valid, login."""
+    data = request.json
+    if not data or 'username' not in data or 'otp' not in data:
+        return error_response('Missing username or otp', 400)
+    user = User.query.filter_by(username=data['username']).first()
+    if not user or user.role == 'admin':
+        return error_response('Invalid user', 401)
+    otp_entry = otp_store.get(user.username)
+    if not otp_entry:
+        return error_response('No OTP requested or expired', 400)
+    if time.time() > otp_entry['expires_at']:
+        otp_store.pop(user.username, None)
+        return error_response('OTP expired', 400)
+    if data['otp'] != otp_entry['otp']:
+        return error_response('Invalid OTP', 401)
+    # OTP valid
+    otp_store.pop(user.username, None)
+    login_user(user)
+    return jsonify({'success': True, 'role': user.role}), 200

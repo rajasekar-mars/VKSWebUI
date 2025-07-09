@@ -4,38 +4,159 @@ import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCirc
 
 const API = 'http://localhost:5000/api';
 
+// CenteredForm: A reusable wrapper for centering forms
+function CenteredForm({ children }) {
+  return (
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-blue-100 to-blue-400 via-blue-200 to-blue-300">
+      <div className="flex flex-1 flex-col items-center justify-center w-full">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState(1); // 1: login, 2: otp
   const [error, setError] = useState('');
+  const [waiting, setWaiting] = useState(false);
+  const [timer, setTimer] = useState(60);
 
-  const handleSubmit = async (e) => {
+  React.useEffect(() => {
+    let interval;
+    if (step === 2 && timer > 0) {
+      interval = setInterval(() => setTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    const res = await fetch(`${API}/login`, {
+    setWaiting(true);
+    const res = await fetch(`${API}/login/request_otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ username, password })
     });
+    setWaiting(false);
     if (res.ok) {
       const data = await res.json();
-      onLogin(data.role);
+      if (data.otp_required) {
+        setStep(2);
+        setTimer(60);
+      } else {
+        onLogin(data.role);
+      }
     } else {
       setError('Invalid credentials');
     }
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setWaiting(true);
+    const res = await fetch(`${API}/login/verify_otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, otp })
+    });
+    setWaiting(false);
+    if (res.ok) {
+      const data = await res.json();
+      onLogin(data.role);
+    } else {
+      setError('Invalid or expired OTP');
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-80">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><LogIn /> Login</h2>
-        <input className="w-full mb-2 p-2 border rounded" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
-        <input className="w-full mb-4 p-2 border rounded" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-        {error && <div className="text-red-500 mb-2">{error}</div>}
-        <button className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2" type="submit"><LogIn /> Login</button>
-      </form>
-    </div>
+    <CenteredForm>
+      <div className="flex flex-col items-center w-full">
+        <form
+          onSubmit={step === 1 ? handleLogin : handleVerifyOtp}
+          className="bg-white/95 p-6 rounded-xl shadow-xl w-full max-w-xs border border-blue-200 backdrop-blur-md transition-all duration-300"
+        >
+          <h2 className="text-2xl font-extrabold mb-4 flex items-center gap-2 text-blue-700 justify-center tracking-tight drop-shadow-lg">
+            <LogIn size={28} /> VKS DAIRY
+          </h2>
+          <div className="mb-3">
+            <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
+              <span className="inline-block"><i className="fa fa-user text-gray-400"></i></span> Username
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-user"></i></span>
+              <input
+                className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
+                placeholder="Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                disabled={step === 2}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="mb-3">
+            <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
+              <span className="inline-block"><i className="fa fa-lock text-gray-400"></i></span> Password
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-lock"></i></span>
+              <input
+                className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                disabled={step === 2}
+              />
+            </div>
+          </div>
+          {step === 2 && (
+            <>
+              <div className="mb-3">
+                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
+                  <span className="inline-block"><i className="fa fa-key text-gray-400"></i></span> OTP
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-key"></i></span>
+                  <input
+                    className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
+                    placeholder="Enter OTP (ask admin)"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="mb-2 text-gray-600 text-xs text-center">OTP valid for <span className="font-bold">{timer}</span> seconds</div>
+            </>
+          )}
+          {error && (
+            <div className="text-red-500 mb-2 text-center flex items-center gap-2 animate-pulse text-sm">
+              <XCircle size={16}/>{error}
+            </div>
+          )}
+          <button
+            className="w-full bg-blue-600 text-white py-1.5 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 disabled:opacity-60 mt-1 text-base font-semibold shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            type="submit"
+            disabled={waiting || (step === 2 && timer <= 0)}
+          >
+            {waiting ? <Loader2 className="animate-spin" size={18}/> : <LogIn size={18}/>} {step === 1 ? 'Login' : 'Verify OTP'}
+          </button>
+          {step === 2 && timer <= 0 && (
+            <div className="text-red-500 mt-2 text-center text-xs">OTP expired. <button className="underline font-semibold" type="button" onClick={() => { setStep(1); setOtp(''); setError(''); }}>Try again</button></div>
+          )}
+        </form>
+        <div className="mt-4 text-gray-500 text-xs flex items-center gap-2 justify-center">
+          <span>Powered by</span> <span className="font-bold text-blue-700">VKSWebUI</span>
+        </div>
+      </div>
+    </CenteredForm>
   );
 }
 

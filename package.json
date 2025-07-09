@@ -1,0 +1,25 @@
+{
+  "name": "vkswebui",
+  "version": "1.0.0",
+  "description": "A full-stack web application with:\r - Flask backend (Flask-Login, Flask-CORS, Flask-SQLAlchemy, SQLite)\r - React frontend (TailwindCSS, Lucide/FontAwesome icons)\r - Admin and employee login, role-based access\r - 5 menus: Center, Collections, Sales, Employee, Accounts (CRUD for each)\r - Docker/local deployment ready",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rajasekar-mars/frontend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rajasekar-mars/frontend/issues"
+  },
+  "homepage": "https://github.com/rajasekar-mars/frontend#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.31.0"
+  }
+}
