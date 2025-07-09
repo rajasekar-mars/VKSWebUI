@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import { LogIn, LogOut, Plus, Save, X, Edit, Trash2 } from 'lucide-react';
+import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
 
@@ -118,7 +118,11 @@ const TABLES = {
 
 function getRowKey(row, columns) {
   if (!columns) return '';
-  if ('id' in row) return row.id;
+  if ('id' in row && row.id !== undefined && row.id !== null) return row.id;
+  // For center_account_details, use composite PK
+  if ('CODE' in row && 'BANK_ACC_NUMBER' in row && 'NAME' in row && 'IFSC' in row && 'BRANCH' in row) {
+    return [row.CODE, row.BANK_ACC_NUMBER, row.NAME, row.IFSC, row.BRANCH].join('__');
+  }
   return columns.map(col => row[col.key]).join('__');
 }
 
@@ -134,65 +138,114 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
   const [newRow, setNewRow] = React.useState({});
   const [error, setError] = React.useState('');
   const [filters, setFilters] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const [toast, setToast] = React.useState(null);
 
   React.useEffect(() => {
+    setLoading(true);
     fetch(`${API}/${endpoint}`, { credentials: 'include' })
       .then(r => r.json())
       .then(setRows)
-      .catch(() => setRows([]));
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
   }, [endpoint]);
 
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2000);
+  };
+
   const handleEdit = (row) => {
-    setEditKey(getRowKey(row));
-    setEditRow(row);
+    setEditKey(getRowKey(row, columns));
+    setEditRow({ ...row });
   };
   const handleSave = async (row) => {
     setError('');
     let url = `${API}/${endpoint}/`;
-    if ('id' in row) {
+    if (endpoint === 'center_account_details') {
+      url += [
+        row.CODE,
+        encodeURIComponent(row.BANK_ACC_NUMBER),
+        encodeURIComponent(row.NAME),
+        encodeURIComponent(row.IFSC),
+        encodeURIComponent(row.BRANCH)
+      ].join('/');
+    } else if ('id' in row) {
       url += row.id;
     } else {
       url += columns.map(col => encodeURIComponent(row[col.key])).join('/');
     }
+    const payload = {};
+    columns.forEach(col => {
+      payload[col.key] = editRow[col.key];
+    });
+    if (endpoint === 'center_account_details') {
+      payload.CODE = row.CODE;
+      payload.BANK_ACC_NUMBER = row.BANK_ACC_NUMBER;
+      payload.NAME = row.NAME;
+      payload.IFSC = row.IFSC;
+      payload.BRANCH = row.BRANCH;
+    }
+    if (row.id) payload.id = row.id;
+    setLoading(true);
     const res = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(editRow)
+      body: JSON.stringify(payload)
     });
+    setLoading(false);
     if (res.ok) {
-      setRows(rows.map(r => getRowKey(r) === editKey ? editRow : r));
+      const updated = await res.json();
+      setRows(rows.map(r => getRowKey(r, columns) === editKey ? updated : r));
       setEditKey(null);
+      showToast('Saved!', 'success');
     } else {
       setError('Save failed');
+      showToast('Save failed', 'error');
     }
   };
   const handleDelete = async (row) => {
     if (!window.confirm('Delete this row?')) return;
     let url = `${API}/${endpoint}/`;
-    if ('id' in row) {
+    if (endpoint === 'center_account_details') {
+      url += [
+        row.CODE,
+        encodeURIComponent(row.BANK_ACC_NUMBER),
+        encodeURIComponent(row.NAME),
+        encodeURIComponent(row.IFSC),
+        encodeURIComponent(row.BRANCH)
+      ].join('/');
+    } else if ('id' in row) {
       url += row.id;
     } else {
       url += columns.map(col => encodeURIComponent(row[col.key])).join('/');
     }
+    setLoading(true);
     await fetch(url, { method: 'DELETE', credentials: 'include' });
-    setRows(rows.filter(r => getRowKey(r) !== getRowKey(row)));
+    setLoading(false);
+    setRows(rows.filter(r => getRowKey(r, columns) !== getRowKey(row, columns)));
+    showToast('Deleted!', 'success');
   };
   const handleAdd = async () => {
     setError('');
+    setLoading(true);
     const res = await fetch(`${API}/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(newRow)
     });
+    setLoading(false);
     if (res.ok) {
       const data = await res.json();
       setRows([...rows, data]);
       setAdding(false);
       setNewRow({});
+      showToast('Added!', 'success');
     } else {
       setError('Add failed');
+      showToast('Add failed', 'error');
     }
   };
 
@@ -209,78 +262,89 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
   return (
     <div className="p-4">
       <div className="flex items-center mb-2">
-        <h2 className="text-xl font-bold mr-4">{endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}</h2>
-        {canEdit && <button className="bg-green-500 text-white px-2 py-1 rounded flex items-center gap-1" onClick={() => setAdding(true)}><Plus size={16}/> Add</button>}
+        <h2 className="text-xl font-bold mr-4 flex items-center gap-2">
+          {endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}
+        </h2>
+        {canEdit && <button className="bg-green-500 text-white px-2 py-1 rounded flex items-center gap-1 shadow hover:bg-green-600" onClick={() => setAdding(true)}><Plus size={16}/> Add</button>}
       </div>
-      {error && <div className="text-red-500 mb-2">{error}</div>}
-      <table className="min-w-full bg-white rounded shadow">
-        <thead>
-          <tr>
-            {columns.map(col => <th key={col.key} className="p-2 border-b text-left">{col.label}</th>)}
-            {canEdit && <th className="p-2 border-b">Actions</th>}
-          </tr>
-          {/* Filter row */}
-          <tr>
-            {columns.map(col => (
-              <th key={col.key} className="p-2 border-b bg-gray-50">
-                <input
-                  className="border p-1 rounded w-full text-sm"
-                  placeholder={`Filter ${col.label}`}
-                  value={filters[col.key] || ''}
-                  onChange={e => setFilters(f => ({ ...f, [col.key]: e.target.value }))}
-                />
-              </th>
-            ))}
-            {canEdit && <th className="p-2 border-b bg-gray-50"></th>}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredRows.map(row => {
-            const rowKey = getRowKey(row, columns);
-            return (
-              <tr key={rowKey} className="border-b">
-                {columns.map(col => (
-                  <td key={col.key} className="p-2">
-                    {editKey === rowKey ? (
-                      <input className="border p-1 rounded w-full" value={editRow[col.key] || ''} onChange={e => setEditRow({ ...editRow, [col.key]: e.target.value })} />
-                    ) : (
-                      row[col.key]
-                    )}
-                  </td>
-                ))}
-                {canEdit && (
-                  <td className="p-2 flex gap-2">
-                    {editKey === rowKey ? (
-                      <>
-                        <button className="text-green-600" onClick={() => handleSave(row)} title="Save"><Save size={16}/></button>
-                        <button className="text-gray-500" onClick={() => setEditKey(null)} title="Cancel"><X size={16}/></button>
-                      </>
-                    ) : (
-                      <>
-                        <button className="text-blue-600" onClick={() => handleEdit(row)} title="Edit"><Edit size={16}/></button>
-                        <button className="text-red-600" onClick={() => handleDelete(row)} title="Delete"><Trash2 size={16}/></button>
-                      </>
-                    )}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-          {adding && (
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded shadow-lg text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+          {toast.type === 'success' ? <CheckCircle size={20}/> : <XCircle size={20}/>}
+          {toast.msg}
+        </div>
+      )}
+      {loading && <div className="flex items-center justify-center py-8"><Loader2 className="animate-spin mr-2"/> Loading...</div>}
+      {error && <div className="text-red-500 mb-2 flex items-center gap-2"><XCircle size={18}/>{error}</div>}
+      <div className="overflow-x-auto rounded-lg shadow">
+        <table className="min-w-full bg-white rounded-lg">
+          <thead className="sticky top-0 bg-gray-100 z-10">
+            <tr>
+              {columns.map(col => <th key={col.key} className="p-2 border-b text-left font-semibold">{col.label}</th>)}
+              {canEdit && <th className="p-2 border-b">Actions</th>}
+            </tr>
+            {/* Filter row */}
             <tr>
               {columns.map(col => (
-                <td key={col.key} className="p-2">
-                  <input className="border p-1 rounded w-full" value={newRow[col.key] || ''} onChange={e => setNewRow({ ...newRow, [col.key]: e.target.value })} />
-                </td>
+                <th key={col.key} className="p-2 border-b bg-gray-50">
+                  <input
+                    className="border p-1 rounded w-full text-sm focus:ring-2 focus:ring-blue-300"
+                    placeholder={`Filter ${col.label}`}
+                    value={filters[col.key] || ''}
+                    onChange={e => setFilters(f => ({ ...f, [col.key]: e.target.value }))}
+                  />
+                </th>
               ))}
-              <td className="p-2 flex gap-2">
-                <button className="text-green-600" onClick={handleAdd} title="Save"><Save size={16}/></button>
-                <button className="text-gray-500" onClick={() => { setAdding(false); setNewRow({}); }} title="Cancel"><X size={16}/></button>
-              </td>
+              {canEdit && <th className="p-2 border-b bg-gray-50"></th>}
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredRows.map((row, i) => {
+              const rowKey = getRowKey(row, columns);
+              return (
+                <tr key={rowKey} className={`border-b ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-blue-50`}>
+                  {columns.map(col => (
+                    <td key={col.key} className="p-2">
+                      {editKey === rowKey ? (
+                        <input className="border p-1 rounded w-full focus:ring-2 focus:ring-blue-300" value={editRow[col.key] || ''} onChange={e => setEditRow({ ...editRow, [col.key]: e.target.value })} />
+                      ) : (
+                        row[col.key]
+                      )}
+                    </td>
+                  ))}
+                  {canEdit && (
+                    <td className="p-2 flex gap-2">
+                      {editKey === rowKey ? (
+                        <>
+                          <button className="text-green-600 hover:text-green-800" onClick={() => handleSave(row)} title="Save"><Save size={16}/></button>
+                          <button className="text-gray-500 hover:text-gray-700" onClick={() => setEditKey(null)} title="Cancel"><X size={16}/></button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="text-blue-600 hover:text-blue-800" onClick={() => handleEdit(row)} title="Edit"><Edit size={16}/></button>
+                          <button className="text-red-600 hover:text-red-800" onClick={() => handleDelete(row)} title="Delete"><Trash2 size={16}/></button>
+                        </>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {adding && (
+              <tr className="bg-yellow-50">
+                {columns.map(col => (
+                  <td key={col.key} className="p-2">
+                    <input className="border p-1 rounded w-full focus:ring-2 focus:ring-blue-300" value={newRow[col.key] || ''} onChange={e => setNewRow({ ...newRow, [col.key]: e.target.value })} />
+                  </td>
+                ))}
+                <td className="p-2 flex gap-2">
+                  <button className="text-green-600 hover:text-green-800" onClick={handleAdd} title="Save"><Save size={16}/></button>
+                  <button className="text-gray-500 hover:text-gray-700" onClick={() => { setAdding(false); setNewRow({}); }} title="Cancel"><X size={16}/></button>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
