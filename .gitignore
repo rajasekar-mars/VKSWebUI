@@ -1,0 +1,15 @@
+# Ignore node_modules and other dependencies
+node_modules/
+
+# Ignore environment files
+.env
+
+# Ignore SQLite database
+instance/*.db
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore VSCode settings
+.vscode/
