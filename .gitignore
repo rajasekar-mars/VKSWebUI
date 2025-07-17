@@ -13,3 +13,5 @@ __pycache__/
 
 # Ignore VSCode settings
 .vscode/
+
+whatsapp-bot/.wwebjs_auth/

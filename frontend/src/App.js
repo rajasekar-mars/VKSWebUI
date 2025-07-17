@@ -7,10 +7,8 @@ const API = 'http://localhost:5000/api';
 // CenteredForm: A reusable wrapper for centering forms
 function CenteredForm({ children }) {
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-blue-100 to-blue-400 via-blue-200 to-blue-300">
-      <div className="flex flex-1 flex-col items-center justify-center w-full">
-        {children}
-      </div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 to-blue-400 via-blue-200 to-blue-300">
+      {children}
     </div>
   );
 }
@@ -77,61 +75,48 @@ function Login({ onLogin }) {
 
   return (
     <CenteredForm>
-      <div className="flex flex-col items-center w-full">
+      <div className="max-w-sm w-full rounded shadow-lg border border-gray-200 bg-white flex flex-col">
+        <div className="bg-blue-700 rounded-t-tl rounded-t-tr px-6 py-4 flex items-center justify-center">
+          <span className="text-white text-xl font-bold tracking-wide flex items-center gap-2">
+            <LogIn size={24} /> Login
+          </span>
+        </div>
         <form
           onSubmit={step === 1 ? handleLogin : handleVerifyOtp}
-          className="bg-white/95 p-6 rounded-xl shadow-xl w-full max-w-xs border border-blue-200 backdrop-blur-md transition-all duration-300"
+          className="px-6 py-6 space-y-4"
         >
-          <h2 className="text-2xl font-extrabold mb-4 flex items-center gap-2 text-blue-700 justify-center tracking-tight drop-shadow-lg">
-            <LogIn size={28} /> VKS DAIRY
-          </h2>
-          <div className="mb-3">
-            <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
-              <span className="inline-block"><i className="fa fa-user text-gray-400"></i></span> Username
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-user"></i></span>
-              <input
-                className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
-                placeholder="Username"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                disabled={step === 2}
-                autoFocus
-              />
-            </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-1 text-sm">Username</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-base transition-all duration-200 bg-white"
+              placeholder="Username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              disabled={step === 2}
+              autoFocus
+            />
           </div>
-          <div className="mb-3">
-            <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
-              <span className="inline-block"><i className="fa fa-lock text-gray-400"></i></span> Password
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-lock"></i></span>
-              <input
-                className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                disabled={step === 2}
-              />
-            </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-1 text-sm">Password</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-base transition-all duration-200 bg-white"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              disabled={step === 2}
+            />
           </div>
           {step === 2 && (
             <>
-              <div className="mb-3">
-                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-2 text-sm">
-                  <span className="inline-block"><i className="fa fa-key text-gray-400"></i></span> OTP
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-400"><i className="fa fa-key"></i></span>
-                  <input
-                    className="w-full pl-9 pr-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-sm transition-all duration-200 bg-white/80"
-                    placeholder="Enter OTP (ask admin)"
-                    value={otp}
-                    onChange={e => setOtp(e.target.value)}
-                  />
-                </div>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1 text-sm">OTP</label>
+                <input
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder-gray-400 text-base transition-all duration-200 bg-white"
+                  placeholder="Enter OTP (ask admin)"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value)}
+                />
               </div>
               <div className="mb-2 text-gray-600 text-xs text-center">OTP valid for <span className="font-bold">{timer}</span> seconds</div>
             </>
@@ -142,7 +127,7 @@ function Login({ onLogin }) {
             </div>
           )}
           <button
-            className="w-full bg-blue-600 text-white py-1.5 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 disabled:opacity-60 mt-1 text-base font-semibold shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 active:bg-blue-900 flex items-center justify-center gap-2 disabled:opacity-60 mt-2 text-base shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
             type="submit"
             disabled={waiting || (step === 2 && timer <= 0)}
           >
@@ -152,9 +137,9 @@ function Login({ onLogin }) {
             <div className="text-red-500 mt-2 text-center text-xs">OTP expired. <button className="underline font-semibold" type="button" onClick={() => { setStep(1); setOtp(''); setError(''); }}>Try again</button></div>
           )}
         </form>
-        <div className="mt-4 text-gray-500 text-xs flex items-center gap-2 justify-center">
-          <span>Powered by</span> <span className="font-bold text-blue-700">VKSWebUI</span>
-        </div>
+      </div>
+      <div className="mt-4 text-gray-500 text-xs flex items-center gap-2 justify-center">
+        <span>Powered by</span> <span className="font-bold text-blue-700">VKSWebUI</span>
       </div>
     </CenteredForm>
   );
@@ -266,7 +251,9 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
     setLoading(true);
     fetch(`${API}/${endpoint}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(setRows)
+      .then(data => {
+        setRows(Array.isArray(data) ? data : []);
+      })
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
   }, [endpoint]);
