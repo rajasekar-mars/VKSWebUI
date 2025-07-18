@@ -75,26 +75,32 @@ def centers():
         return jsonify([{'id': c.id, 'name': c.name, 'location': c.location} for c in centers]), 200
     if request.method == 'POST':
         data = request.json
+        if not data.get('name') or not data.get('location'):
+            return error_response('Name and location are required.', 400)
         center = Center(name=data['name'], location=data['location'])
         db.session.add(center)
         db.session.commit()
-        return jsonify({'id': center.id, 'name': center.name, 'location': center.location}), 201
+        return success_response('Center created successfully.', {'id': center.id, 'name': center.name, 'location': center.location}, 201)
 
 @app.route('/api/centers/<int:center_id>', methods=['PUT', 'DELETE'])
 @login_required
 def update_center(center_id):
     """Update or delete center."""
-    center = Center.query.get_or_404(center_id)
+    center = Center.query.get(center_id)
+    if not center:
+        return error_response('Center not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        center.name = data.get('name', center.name)
-        center.location = data.get('location', center.location)
+        if not data.get('name') or not data.get('location'):
+            return error_response('Name and location are required.', 400)
+        center.name = data['name']
+        center.location = data['location']
         db.session.commit()
-        return jsonify({'id': center.id, 'name': center.name, 'location': center.location}), 200
+        return success_response('Center updated successfully.', {'id': center.id, 'name': center.name, 'location': center.location}, 200)
     if request.method == 'DELETE':
         db.session.delete(center)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Center deleted successfully.', None, 200)
 
 # CRUD for Collections
 def collection_to_dict(collection):
@@ -114,27 +120,33 @@ def collections():
         return jsonify([collection_to_dict(c) for c in collections]), 200
     if request.method == 'POST':
         data = request.json
+        if not data.get('amount') or not data.get('date') or not data.get('center_id'):
+            return error_response('Amount, date, and center_id are required.', 400)
         collection = Collection(amount=data['amount'], date=data['date'], center_id=data['center_id'])
         db.session.add(collection)
         db.session.commit()
-        return jsonify(collection_to_dict(collection)), 201
+        return success_response('Collection created successfully.', collection_to_dict(collection), 201)
 
 @app.route('/api/collections/<int:collection_id>', methods=['PUT', 'DELETE'])
 @login_required
 def update_collection(collection_id):
     """Update or delete collection."""
-    collection = Collection.query.get_or_404(collection_id)
+    collection = Collection.query.get(collection_id)
+    if not collection:
+        return error_response('Collection not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        collection.amount = data.get('amount', collection.amount)
-        collection.date = data.get('date', collection.date)
-        collection.center_id = data.get('center_id', collection.center_id)
+        if not data.get('amount') or not data.get('date') or not data.get('center_id'):
+            return error_response('Amount, date, and center_id are required.', 400)
+        collection.amount = data['amount']
+        collection.date = data['date']
+        collection.center_id = data['center_id']
         db.session.commit()
-        return jsonify(collection_to_dict(collection)), 200
+        return success_response('Collection updated successfully.', collection_to_dict(collection), 200)
     if request.method == 'DELETE':
         db.session.delete(collection)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Collection deleted successfully.', None, 200)
 
 # CRUD for Sales
 def sale_to_dict(sale):
@@ -156,29 +168,39 @@ def sales():
         return jsonify([sale_to_dict(s) for s in sales]), 200
     if request.method == 'POST':
         data = request.json
+        required = ['item', 'quantity', 'price', 'date', 'center_id']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
         sale = Sale(item=data['item'], quantity=data['quantity'], price=data['price'], date=data['date'], center_id=data['center_id'])
         db.session.add(sale)
         db.session.commit()
-        return jsonify(sale_to_dict(sale)), 201
+        return success_response('Sale created successfully.', sale_to_dict(sale), 201)
 
 @app.route('/api/sales/<int:sale_id>', methods=['PUT', 'DELETE'])
 @login_required
 def update_sale(sale_id):
     """Update or delete sale."""
-    sale = Sale.query.get_or_404(sale_id)
+    sale = Sale.query.get(sale_id)
+    if not sale:
+        return error_response('Sale not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        sale.item = data.get('item', sale.item)
-        sale.quantity = data.get('quantity', sale.quantity)
-        sale.price = data.get('price', sale.price)
-        sale.date = data.get('date', sale.date)
-        sale.center_id = data.get('center_id', sale.center_id)
+        required = ['item', 'quantity', 'price', 'date', 'center_id']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
+        sale.item = data['item']
+        sale.quantity = data['quantity']
+        sale.price = data['price']
+        sale.date = data['date']
+        sale.center_id = data['center_id']
         db.session.commit()
-        return jsonify(sale_to_dict(sale)), 200
+        return success_response('Sale updated successfully.', sale_to_dict(sale), 200)
     if request.method == 'DELETE':
         db.session.delete(sale)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Sale deleted successfully.', None, 200)
 
 # CRUD for Employees (Users)
 def user_to_dict(user):
@@ -196,25 +218,17 @@ def user_to_dict(user):
 def employees():
     """List or create employees (admin only)."""
     if current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+        return error_response('Unauthorized', 403)
     if request.method == 'GET':
         users = User.query.all()
-        result = []
-        for u in users:
-            result.append({
-                'id': u.id,
-                'username': u.username,
-                'role': u.role,
-                'MobileNumber': u.MobileNumber,
-                'EmailID': u.EmailID,
-                'AccessControl': u.AccessControl
-            })
+        result = [user_to_dict(u) for u in users]
         return jsonify(result), 200
     if request.method == 'POST':
         data = request.json
         required = ['username', 'password', 'role', 'MobileNumber', 'EmailID']
-        if not all(k in data for k in required):
-            return jsonify({'error': 'Missing required fields'}), 400
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
         try:
             hashed_pw = generate_password_hash(data['password'])
             user = User(
@@ -227,36 +241,40 @@ def employees():
             )
             db.session.add(user)
             db.session.commit()
-            # Return the full list of users (as array) for frontend consistency
             users = User.query.all()
             result = [user_to_dict(u) for u in users]
-            return jsonify(result), 201
+            return success_response('Employee created successfully.', result, 201)
         except IntegrityError:
             db.session.rollback()
-            return jsonify({'error': 'Username or email already exists'}), 409
+            return error_response('Username or email already exists.', 409)
 
 @app.route('/api/employees/<int:user_id>', methods=['PUT', 'DELETE'])
 @login_required
 def update_employee(user_id):
     """Update or delete employee (admin only)."""
     if current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-    user = get_or_404(User, user_id)
+        return error_response('Unauthorized', 403)
+    user = User.query.get(user_id)
+    if not user:
+        return error_response('Employee not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        user.username = data.get('username', user.username)
-        if data.get('password'):
-            user.password = generate_password_hash(data['password'])
-        user.role = data.get('role', user.role)
-        user.MobileNumber = data.get('MobileNumber', user.MobileNumber)
-        user.EmailID = data.get('EmailID', user.EmailID)
+        required = ['username', 'password', 'role', 'MobileNumber', 'EmailID']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
+        user.username = data['username']
+        user.password = generate_password_hash(data['password'])
+        user.role = data['role']
+        user.MobileNumber = data['MobileNumber']
+        user.EmailID = data['EmailID']
         user.AccessControl = data.get('AccessControl', user.AccessControl)
         db.session.commit()
-        return jsonify(user_to_dict(user)), 200
+        return success_response('Employee updated successfully.', user_to_dict(user), 200)
     if request.method == 'DELETE':
         db.session.delete(user)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Employee deleted successfully.', None, 200)
 
 # CRUD for Accounts
 def account_to_dict(account):
@@ -275,26 +293,32 @@ def accounts():
         return jsonify([account_to_dict(a) for a in accounts]), 200
     if request.method == 'POST':
         data = request.json
+        if not data.get('name') or not data.get('balance'):
+            return error_response('Name and balance are required.', 400)
         account = Account(name=data['name'], balance=data['balance'])
         db.session.add(account)
         db.session.commit()
-        return jsonify(account_to_dict(account)), 201
+        return success_response('Account created successfully.', account_to_dict(account), 201)
 
 @app.route('/api/accounts/<int:account_id>', methods=['PUT', 'DELETE'])
 @login_required
 def update_account(account_id):
     """Update or delete account."""
-    account = Account.query.get_or_404(account_id)
+    account = Account.query.get(account_id)
+    if not account:
+        return error_response('Account not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        account.name = data.get('name', account.name)
-        account.balance = data.get('balance', account.balance)
+        if not data.get('name') or not data.get('balance'):
+            return error_response('Name and balance are required.', 400)
+        account.name = data['name']
+        account.balance = data['balance']
         db.session.commit()
-        return jsonify(account_to_dict(account)), 200
+        return success_response('Account updated successfully.', account_to_dict(account), 200)
     if request.method == 'DELETE':
         db.session.delete(account)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Account deleted successfully.', None, 200)
 
 def center_account_to_dict(acc):
     return {
@@ -316,45 +340,55 @@ def center_account_details():
         return jsonify([center_account_to_dict(a) for a in accs]), 200
     if request.method == 'POST':
         data = request.json
-        required = ['CODE', 'BANK_ACC_NUMBER', 'NAME', 'IFSC']
-        if not all(k in data for k in required):
-            return jsonify({'error': 'Missing required fields'}), 400
+        required = ['CODE', 'BANK_ACC_NUMBER', 'NAME', 'IFSC', 'BRANCH', 'AMOUNT']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
         acc = CenterAccountDetails(
             CODE=data['CODE'],
             SUB_CODE=data.get('SUB_CODE'),
             BANK_ACC_NUMBER=data['BANK_ACC_NUMBER'],
             NAME=data['NAME'],
             IFSC=data['IFSC'],
-            BRANCH=data.get('BRANCH'),
-            AMOUNT=data.get('AMOUNT', 1)
+            BRANCH=data['BRANCH'],
+            AMOUNT=data['AMOUNT']
         )
         db.session.add(acc)
         try:
             db.session.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             db.session.rollback()
-            return jsonify({'error': 'Duplicate entry or constraint error'}), 409
-        return jsonify(center_account_to_dict(acc)), 201
+            # More explicit error message for duplicate
+            if 'UNIQUE constraint failed' in str(e):
+                return error_response('Duplicate record: Center Account Details with this key already exists.', 409)
+            return error_response('Database error: Unable to add record.', 409)
+        return success_response('Center account details created successfully.', center_account_to_dict(acc), 201)
 
 @app.route('/api/center_account_details/<int:code>/<bank_acc_number>/<name>/<ifsc>/<branch>', methods=['PUT', 'DELETE'])
 @login_required
 def update_center_account_details(code, bank_acc_number, name, ifsc, branch):
     """Update or delete center account details by composite PK."""
-    acc = get_or_404(CenterAccountDetails, code, bank_acc_number, name, ifsc, branch)
+    acc = CenterAccountDetails.query.get((code, bank_acc_number, name, ifsc, branch))
+    if not acc:
+        return error_response('Center account details not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        acc.SUB_CODE = data.get('SUB_CODE', acc.SUB_CODE)
-        acc.BANK_ACC_NUMBER = data.get('BANK_ACC_NUMBER', acc.BANK_ACC_NUMBER)
-        acc.NAME = data.get('NAME', acc.NAME)
-        acc.IFSC = data.get('IFSC', acc.IFSC)
-        acc.BRANCH = data.get('BRANCH', acc.BRANCH)
-        acc.AMOUNT = data.get('AMOUNT', acc.AMOUNT)
+        required = ['SUB_CODE', 'BANK_ACC_NUMBER', 'NAME', 'IFSC', 'BRANCH', 'AMOUNT']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
+        acc.SUB_CODE = data['SUB_CODE']
+        acc.BANK_ACC_NUMBER = data['BANK_ACC_NUMBER']
+        acc.NAME = data['NAME']
+        acc.IFSC = data['IFSC']
+        acc.BRANCH = data['BRANCH']
+        acc.AMOUNT = data['AMOUNT']
         db.session.commit()
-        return jsonify(center_account_to_dict(acc)), 200
+        return success_response('Center account details updated successfully.', center_account_to_dict(acc), 200)
     if request.method == 'DELETE':
         db.session.delete(acc)
         db.session.commit()
-        return jsonify({'success': True}), 200
+        return success_response('Center account details deleted successfully.', None, 200)
 
 # In-memory OTP store: {username: {otp, expires_at}}
 otp_store = {}

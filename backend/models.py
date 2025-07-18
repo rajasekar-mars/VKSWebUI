@@ -37,7 +37,7 @@ class Account(db.Model):
 class CenterAccountDetails(db.Model):
     __tablename__ = 'CENTER_ACCOUNT_DETAILS'
     CODE = db.Column(db.Integer, primary_key=True, nullable=False)
-    SUB_CODE = db.Column(db.String, nullable=True)
+    SUB_CODE = db.Column(db.String, primary_key=True, nullable=True)
     BANK_ACC_NUMBER = db.Column(db.String, primary_key=True, nullable=False)
     NAME = db.Column(db.String, primary_key=True, nullable=False)
     IFSC = db.Column(db.String, primary_key=True, nullable=False)

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 import './App.css';
 import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -238,6 +239,148 @@ function getRowKeyFields(row, keyFields) {
 
 function CrudTable({ endpoint, columns, canEdit = true }) {
   const [rows, setRows] = React.useState([]);
+  // Export helpers
+  // Import helpers
+  const [importing, setImporting] = React.useState(false);
+  const [rejectedRows, setRejectedRows] = React.useState([]);
+  const fileInputRef = React.useRef();
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    setRejectedRows([]);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      let importedRows = [];
+      let isXLSX = file.name.endsWith('.xlsx');
+      try {
+        if (isXLSX) {
+          const wb = XLSX.read(evt.target.result, { type: 'binary' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          importedRows = XLSX.utils.sheet_to_json(ws);
+        } else {
+          const text = evt.target.result;
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          const header = lines[0].split(',').map(h => h.trim());
+          importedRows = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj = {};
+            header.forEach((h, i) => { obj[h] = values[i] || ''; });
+            return obj;
+          });
+        }
+      } catch (err) {
+        alert('Failed to parse file.');
+        setImporting(false);
+        return;
+      }
+      let validRows = [];
+      let rejected = [];
+      // Get header values for comparison
+      const headerLabels = columns.map(col => col.label);
+      for (const row of importedRows) {
+        // Check if this row is a header row (all values match header labels)
+        const rowValues = columns.map(col => (row[col.label] ?? row[col.key] ?? '').toString().trim());
+        const isHeaderRow = rowValues.every((val, idx) => val === headerLabels[idx]);
+        if (isHeaderRow) continue; // Skip header row
+        // Map imported keys to expected keys
+        const mappedRow = {};
+        columns.forEach(col => {
+          mappedRow[col.key] = row[col.label] ?? row[col.key] ?? '';
+        });
+        // Basic validation: all required fields present
+        let missing = columns.filter(col => !mappedRow[col.key]);
+        if (missing.length) {
+          rejected.push({ ...row, Reason: 'Missing: ' + missing.map(m => m.label).join(', ') });
+          continue;
+        }
+        // Try to insert
+        try {
+          const res = await fetch(`${API}/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(mappedRow)
+          });
+          let result;
+          try { result = await res.json(); } catch { result = null; }
+          if (res.ok && result && result.success) {
+            validRows.push(result.data || result);
+          } else {
+            const msg = (result && result.message) ? result.message : 'Insert failed';
+            rejected.push({ ...row, Reason: msg });
+          }
+        } catch (err) {
+          rejected.push({ ...row, Reason: 'Network error' });
+        }
+      }
+      if (validRows.length) {
+        setRows([...rows, ...validRows]);
+        showToast(`Imported ${validRows.length} rows`, 'success');
+      }
+      if (rejected.length) {
+        setRejectedRows(rejected);
+        showToast(`${rejected.length} rows rejected`, 'error');
+      }
+      setImporting(false);
+    };
+    if (file.name.endsWith('.xlsx')) reader.readAsBinaryString(file);
+    else reader.readAsText(file);
+  };
+
+  const downloadRejectedCSV = () => {
+    if (!rejectedRows.length) return;
+    const header = [...columns.map(col => col.label), 'Reason'];
+    const csvRows = [header.join(',')];
+    rejectedRows.forEach(row => {
+      csvRows.push([
+        ...columns.map(col => `"${(row[col.label] ?? row[col.key] ?? '').toString().replace(/"/g, '""')}"`),
+        `"${(row.Reason ?? '').replace(/"/g, '""')}"`
+      ].join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${endpoint}_rejected.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const exportCSV = () => {
+    const header = columns.map(col => col.label);
+    const csvRows = [header.join(',')];
+    filteredRows.forEach(row => {
+      csvRows.push(columns.map(col => `"${(row[col.key] ?? '').toString().replace(/"/g, '""')}"`).join(','));
+    });
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${endpoint}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportXLSX = () => {
+    const data = filteredRows.map(row => {
+      const obj = {};
+      columns.forEach(col => { obj[col.label] = row[col.key]; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, endpoint);
+    XLSX.writeFile(wb, `${endpoint}.xlsx`);
+  };
+  const [page, setPage] = React.useState(1);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [editKey, setEditKey] = React.useState(null);
   const [editRow, setEditRow] = React.useState({});
   const [adding, setAdding] = React.useState(false);
@@ -248,6 +391,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
   const [toast, setToast] = React.useState(null);
 
   React.useEffect(() => {
+    setPage(1); // Reset page to 1 when endpoint changes
     setLoading(true);
     fetch(`${API}/${endpoint}`, { credentials: 'include' })
       .then(r => r.json())
@@ -303,14 +447,21 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       body: JSON.stringify(payload)
     });
     setLoading(false);
-    if (res.ok) {
-      const updated = await res.json();
-      setRows(rows.map(r => getRowKey(r, columns) === editKey ? updated : r));
+    let result;
+    try {
+      result = await res.json();
+    } catch {
+      result = null;
+    }
+    if (res.ok && result && result.success) {
+      setRows(rows.map(r => getRowKey(r, columns) === editKey ? result.data || result : r));
       setEditKey(null);
       showToast('Saved!', 'success');
     } else {
-      setError('Save failed');
-      showToast('Save failed', 'error');
+      const msg = (result && result.message) ? result.message : 'Save failed';
+      setError(msg);
+      showToast(msg, 'error');
+      alert(msg);
     }
   };
   const handleDelete = async (row) => {
@@ -345,15 +496,22 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       body: JSON.stringify(newRow)
     });
     setLoading(false);
-    if (res.ok) {
-      const data = await res.json();
-      setRows([...rows, data]);
+    let result;
+    try {
+      result = await res.json();
+    } catch {
+      result = null;
+    }
+    if (res.ok && result && result.success) {
+      setRows([...rows, result.data || result]);
       setAdding(false);
       setNewRow({});
       showToast('Added!', 'success');
     } else {
-      setError('Add failed');
-      showToast('Add failed', 'error');
+      const msg = (result && result.message) ? result.message : 'Add failed';
+      setError(msg);
+      showToast(msg, 'error');
+      alert(msg);
     }
   };
 
@@ -367,6 +525,10 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
     })
   );
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
+  const pagedRows = filteredRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
   return (
     <div className="p-4">
       <div className="flex items-center mb-2">
@@ -374,6 +536,39 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
           {endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}
         </h2>
         {canEdit && <button className="bg-green-500 text-white px-2 py-1 rounded flex items-center gap-1 shadow hover:bg-green-600" onClick={() => setAdding(true)}><Plus size={16}/> Add</button>}
+        {/* Export/Import dropdown for privileged users */}
+        {['admin','ChiefAccountant','ChiefSupervisor'].includes(window.currentUserRole) && (
+          <div className="ml-4 flex gap-2 items-center">
+            <select
+              className="bg-blue-500 text-white px-2 py-1 rounded shadow hover:bg-blue-600 cursor-pointer"
+              style={{ minWidth: '120px' }}
+              defaultValue=""
+              onChange={e => {
+                if (e.target.value === 'csv') exportCSV();
+                else if (e.target.value === 'xlsx') exportXLSX();
+                e.target.value = '';
+              }}
+            >
+              <option value="" disabled>Export</option>
+              <option value="csv">.csv</option>
+              <option value="xlsx">.xlsx</option>
+            </select>
+            <label className="bg-yellow-500 text-white px-2 py-1 rounded shadow hover:bg-yellow-600 cursor-pointer" style={{ minWidth: '120px' }}>
+              Import
+              <input
+                type="file"
+                accept=".csv,.xlsx"
+                style={{ display: 'none' }}
+                ref={fileInputRef}
+                onChange={handleImport}
+                disabled={importing}
+              />
+            </label>
+            {rejectedRows.length > 0 && (
+              <button className="bg-red-500 text-white px-2 py-1 rounded shadow hover:bg-red-600" onClick={downloadRejectedCSV} type="button">Download Rejected</button>
+            )}
+          </div>
+        )}
       </div>
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded shadow-lg text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -382,7 +577,15 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
         </div>
       )}
       {loading && <div className="flex items-center justify-center py-8"><Loader2 className="animate-spin mr-2"/> Loading...</div>}
-      {error && <div className="text-red-500 mb-2 flex items-center gap-2"><XCircle size={18}/>{error}</div>}
+      {/* Pagination controls */}
+      <div className="flex items-center justify-end mb-2 gap-2">
+        <button className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300" disabled={page === 1} onClick={() => setPage(page - 1)}>Prev</button>
+        <span className="font-semibold">Page {page} of {totalPages}</span>
+        <button className="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300" disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</button>
+        <select className="ml-2 border rounded px-2 py-1" value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(1); }}>
+          {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
+        </select>
+      </div>
       <div className="overflow-x-auto rounded-lg shadow">
         <table className="min-w-full bg-white rounded-lg">
           <thead className="sticky top-0 bg-gray-100 z-10">
@@ -406,7 +609,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row, i) => {
+            {pagedRows.map((row, i) => {
               const rowKey = getRowKey(row, columns);
               return (
                 <tr key={rowKey} className={`border-b ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-blue-50`}>
@@ -467,6 +670,9 @@ function App() {
   };
 
   if (!role) return <Login onLogin={setRole} />;
+
+  // Set global user role for export button access
+  window.currentUserRole = role;
 
   const { columns, keyFields } = TABLES[menu];
 
