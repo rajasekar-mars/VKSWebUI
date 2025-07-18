@@ -15,4 +15,6 @@ __pycache__/
 .vscode/
 
 whatsapp-bot/.wwebjs_auth/
+
 node_modules/
+
