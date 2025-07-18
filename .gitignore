@@ -1,5 +1,10 @@
 # Ignore node_modules and other dependencies
 node_modules/
+# Ignore frontend and backend node_modules
+frontend/node_modules/*
+frontend/node_modules/.cache/*
+backend/node_modules/*
+
 
 # Ignore environment files
 .env
@@ -9,9 +14,63 @@ instance/*.db
 
 # Ignore Python cache
 __pycache__/
+backend/__pycache__/
 *.pyc
 
 # Ignore VSCode settings
 .vscode/
 
 whatsapp-bot/.wwebjs_auth/
+whatsapp-bot/.wwebjs_auth/session*
+.wwebjs_auth/session*
+.wwebjs_cache/
+
+# Ignore log files
+*.log
+
+# Ignore build artifacts
+build/
+# Ignore temporary files
+*.tmp
+# Ignore coverage reports
+coverage/
+# Ignore IDE specific files
+.idea/
+# Ignore macOS specific files
+.DS_Store
+# Ignore Windows specific files
+Thumbs.db
+# Ignore Linux specific files
+*~
+# Ignore test output
+test-output/
+# Ignore documentation build artifacts
+docs/_build/
+# Ignore package lock files
+package-lock.json
+# Ignore yarn lock files
+yarn.lock
+# Ignore pipenv files
+Pipfile.lock
+# Ignore virtual environment directories
+venv/
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore Docker files
+Dockerfile
+# Ignore Docker Compose files
+docker-compose.yml
+# Ignore coverage configuration files
+.coverage
+# Ignore ESLint cache
+.eslintcache
+# Ignore Prettier cache
+.prettiercache
+# Ignore build directories
+dist/
+# Ignore temporary files created by editors
+*.swp
+*.swo
+*.tmp
+# Ignore backup files
+*.bak
