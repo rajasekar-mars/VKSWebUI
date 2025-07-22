@@ -1,0 +1,21 @@
+{
+  "head_office": {
+    "address": "123, Main Road, Chennai, India",
+    "email": "headoffice@vkswebui.com",
+    "phone": "+91 12345 67890"
+  },
+  "branches": [
+    {
+      "name": "Bangalore Branch",
+      "address": "456, MG Road, Bangalore, India",
+      "email": "blrbranch@vkswebui.com",
+      "phone": "+91 98765 43210"
+    },
+    {
+      "name": "Hyderabad Branch",
+      "address": "789, Banjara Hills, Hyderabad, India",
+      "email": "hydbranch@vkswebui.com",
+      "phone": "+91 99887 77665"
+    }
+  ]
+}
