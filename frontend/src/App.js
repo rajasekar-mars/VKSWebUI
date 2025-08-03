@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css';
-import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle, ChevronUp, ChevronDown, Sun, Moon } from 'lucide-react';
+import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle, ChevronUp, ChevronDown, Sun, Moon, Eye, EyeOff, User, Lock } from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
 
@@ -16,10 +16,12 @@ function CenteredForm({ children }) {
     </div>
   );
 }
+// ...existing code...
 
 function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1); // 1: login, 2: otp
   const [error, setError] = useState('');
@@ -78,82 +80,223 @@ function Login({ onLogin }) {
   };
 
   return (
-    <CenteredForm>
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl">
-        <div className="text-center">
-          <img src={process.env.PUBLIC_URL + '/logo192.png'} alt="Logo" className="w-20 h-20 mx-auto mb-4 rounded-full" />
-          <h1 className="text-3xl font-bold text-gray-900">Welcome Back!</h1>
-          <p className="mt-2 text-gray-600">Please sign in to continue</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Login Card */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 md:p-10 relative">
+          {/* Background decorative elements inside card */}
+          <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:60px_60px] rounded-3xl"></div>
+          <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full filter blur-2xl"></div>
+          <div className="absolute bottom-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full filter blur-2xl"></div>
+          
+          <div className="relative z-10">
+            {/* Header Section */}
+            <div className="text-center mb-8">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                  <User className="w-10 h-10 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+                VKS Business Portal
+              </h1>
+              <p className="text-gray-500 font-medium">Secure access to your business dashboard</p>
+              <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto mt-4"></div>
+            </div>
+          <form onSubmit={step === 1 ? handleLogin : handleVerifyOtp} className="space-y-7">
+            {step === 1 ? (
+              <>
+                <div className="space-y-5">
+                  <div className="relative group">
+                    <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <User className="w-4 h-4 text-blue-600" />
+                      Username
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        placeholder="Enter your business username"
+                        className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 focus:bg-white placeholder-gray-400 font-medium group-hover:border-gray-300"
+                        required
+                        autoFocus
+                      />
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-focus-within:from-blue-500/5 group-focus-within:to-purple-500/5 transition-all duration-300 pointer-events-none"></div>
+                    </div>
+                  </div>
+                  
+                  <div className="relative group">
+                    <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-blue-600" />
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Enter your secure password"
+                        className="w-full px-4 py-3.5 pr-12 border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 focus:bg-white placeholder-gray-400 font-medium group-hover:border-gray-300"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors duration-200 p-1"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-focus-within:from-blue-500/5 group-focus-within:to-purple-500/5 transition-all duration-300 pointer-events-none"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between py-2">
+                  <label className="flex items-center cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-all duration-200"
+                    />
+                    <span className="ml-3 text-sm text-gray-600 font-medium group-hover:text-gray-800 transition-colors">Remember me</span>
+                  </label>
+                  <a href="#" className="text-sm text-blue-600 hover:text-blue-800 font-semibold transition-colors duration-200 hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative group">
+                  <label htmlFor="otp" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-blue-600" />
+                    Verification Code (OTP)
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="otp"
+                      type="text"
+                      value={otp}
+                      onChange={e => setOtp(e.target.value)}
+                      placeholder="Enter 6-digit verification code"
+                      className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 transition-all duration-300 bg-gray-50/50 focus:bg-white placeholder-gray-400 font-medium text-center text-lg tracking-widest group-hover:border-gray-300"
+                      required
+                      autoFocus
+                      maxLength="6"
+                    />
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 to-purple-500/0 group-focus-within:from-blue-500/5 group-focus-within:to-purple-500/5 transition-all duration-300 pointer-events-none"></div>
+                  </div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="text-sm text-blue-700 font-medium">
+                    Code expires in <span className="font-bold text-lg text-blue-800">{timer}s</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-1000"
+                      style={{ width: `${(timer / 60) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </>
+            )}
+            {error && (
+              <div className="flex items-center justify-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl animate-shake">
+                <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <span className="text-sm font-medium text-red-700">{error}</span>
+              </div>
+            )}
+            
+            <button
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none shadow-lg flex items-center justify-center gap-3 relative overflow-hidden group"
+              type="submit"
+              disabled={waiting || (step === 2 && timer <= 0)}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              {waiting ? (
+                <>
+                  <Loader2 className="animate-spin w-5 h-5" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  {step === 1 ? (
+                    <>
+                      <Lock className="w-5 h-5" />
+                      <span>Request Access Code</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Verify & Sign In</span>
+                    </>
+                  )}
+                </>
+              )}
+            </button>
+            
+            {step === 2 && timer <= 0 && (
+              <div className="text-center p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-sm text-amber-700 mb-3 font-medium">
+                  Your verification code has expired
+                </p>
+                <button 
+                  className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200 underline" 
+                  type="button" 
+                  onClick={() => { setStep(1); setOtp(''); setError(''); }}
+                >
+                  Request a new code
+                </button>
+              </div>
+            )}
+          </form>
+          
+          {/* Footer Section */}
+          <div className="mt-10 text-center space-y-4">
+            <div className="flex items-center justify-center gap-4 py-4">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent to-gray-200"></div>
+              <span className="text-xs text-gray-400 font-medium px-3">SECURE LOGIN</span>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent to-gray-200"></div>
+            </div>
+            
+            <p className="text-gray-500 text-sm">
+              Need help accessing your account?{' '}
+              <a href="#" className="text-blue-600 hover:text-blue-800 font-semibold transition-colors duration-200 hover:underline">
+                Contact Support
+              </a>
+            </p>
+            
+            <div className="flex items-center justify-center gap-6 pt-4">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span>SSL Secured</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <span>Enterprise Ready</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                <span>24/7 Available</span>
+              </div>
+            </div>
+          </div>
+          </div>
         </div>
-        <form
-          onSubmit={step === 1 ? handleLogin : handleVerifyOtp}
-          className="space-y-6"
-        >
-          {step === 1 ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 sr-only">Username</label>
-                <input
-                  className="w-full px-4 py-3 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 sr-only">Password</label>
-                <input
-                  className="w-full px-4 py-3 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 sr-only">OTP</label>
-                <input
-                  className="w-full px-4 py-3 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter OTP from admin"
-                  value={otp}
-                  onChange={e => setOtp(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="text-sm text-center text-gray-600">OTP is valid for <span className="font-bold">{timer}s</span></div>
-            </>
-          )}
-
-          {error && (
-            <div className="flex items-center justify-center gap-2 text-sm text-red-600 animate-shake">
-              <XCircle size={20} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200"
-            type="submit"
-            disabled={waiting || (step === 2 && timer <= 0)}
-          >
-            {waiting ? <Loader2 className="animate-spin" size={20} /> : (step === 1 ? 'Request OTP' : 'Verify & Login')}
-          </button>
-
-          {step === 2 && timer <= 0 && (
-            <div className="text-sm text-center text-red-600">
-              OTP expired. <button className="font-medium text-blue-600 hover:underline" type="button" onClick={() => { setStep(1); setOtp(''); setError(''); }}>Request again</button>
-            </div>
-          )}
-        </form>
-        <p className="text-xs text-center text-gray-500">
-          Powered by <span className="font-semibold text-gray-700">VKSWebUI</span>
-        </p>
+        
+        {/* Bottom tagline */}
+        <div className="text-center mt-6">
+          <p className="text-white/70 text-sm font-medium">
+            Powered by VKS Technology • Trusted by businesses worldwide
+          </p>
+        </div>
       </div>
-    </CenteredForm>
+    </div>
   );
 }
 
@@ -197,7 +340,7 @@ function MenuBar({ role, current, setCurrent, onLogout }) {
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center gap-3">
-            <img src={process.env.PUBLIC_URL + '/logo192.png'} alt="Logo" className="h-10 w-10 rounded-full shadow-md border-2 border-white" />
+            {/* Logo removed as per user request */}
             <span className={`text-2xl font-bold tracking-tight ${darkMode ? 'text-white' : 'text-gray-800'}`}>VKSWebUI</span>
           </div>
 
@@ -707,11 +850,11 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
   const pagedRows = sortedRows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   return (
-    <div className={`p-4 sm:p-6 lg:p-8 transition-all duration-300 ${darkMode ? 'dark' : ''}`}>
+    <div className="p-4 sm:p-6 lg:p-8 transition-all duration-300">
       <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-3">
-        <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} flex items-center gap-2`}>
+        <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} flex items-center gap-2`}>
           {endpoint.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          <span className="text-sm font-normal bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{sortedRows.length} records</span>
+          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full align-middle" style={{marginTop:2, fontWeight: 'normal'}}>{sortedRows.length} records</span>
         </h2>
         <div className="flex items-center gap-2">
           {canEdit && <button className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-600 transition-all duration-200" onClick={() => setAdding(true)}><Plus size={18}/> Add New</button>}
@@ -741,7 +884,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
 
       {loading && <div className="flex items-center justify-center py-12 text-lg"><Loader2 className="animate-spin mr-3" size={24}/> Loading data, please wait...</div>}
       
-      <div className={`overflow-x-auto rounded-xl shadow-2xl ${darkMode ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-xl border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`overflow-x-auto rounded-xl shadow-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} backdrop-blur-xl border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
         <table className="min-w-full bg-transparent">
           <thead className={`sticky top-0 z-10 ${darkMode ? 'bg-gray-900/70' : 'bg-gray-100/70'}`}>
             <tr>
@@ -916,16 +1059,15 @@ function AppContent() {
   if (menu === 'home') {
     content = (
       <div className={`flex flex-col items-center justify-center text-center py-16 px-4 transition-all duration-500 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-        <img src={process.env.PUBLIC_URL + '/logo192.png'} alt="Logo" className="w-24 h-24 mb-6 rounded-full shadow-2xl" />
-        <h1 className={`text-4xl md:text-5xl font-extrabold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Welcome to VKSWebUI</h1>
-        <p className={`text-lg md:text-xl max-w-2xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        <h1 className={`text-3xl md:text-4xl font-bold mb-2 flex items-center justify-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Welcome to VKSWebUI</h1>
+        <p className={`text-base md:text-lg max-w-2xl mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           Your central hub for managing centers, collections, sales, and more. Navigate through the app using the menu above.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
           {TABLES && Object.keys(TABLES).map(key => (
             <div key={key} className={`p-6 rounded-xl shadow-lg transition-all duration-300 cursor-pointer ${darkMode ? 'bg-gray-800/80 hover:bg-gray-700/80' : 'bg-white/80 hover:bg-blue-50/80'} backdrop-blur-md border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`} onClick={() => setMenu(key)}>
-              <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
-              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Manage {key.replace(/_/g, ' ')} data.</p>
+              <h3 className={`text-lg font-semibold mb-1 flex items-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Manage {key.replace(/_/g, ' ')} data.</p>
             </div>
           ))}
         </div>
@@ -999,11 +1141,14 @@ function App() {
     }
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      if (document.body) document.body.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+      if (document.body) document.body.classList.remove('dark');
     }
-  }, [darkMode]);
 
+  const toggleDarkMode = () => setDarkMode(d => !d);
+  }, [darkMode]);
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   return (
