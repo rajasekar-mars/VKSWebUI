@@ -394,26 +394,39 @@ def update_center_account_details(code, bank_acc_number, name, ifsc, branch):
 otp_store = {}
 
 # WhatsApp API config (for local WhatsApp Web bot)
-WHATSAPP_BOT_API_URL = 'http://localhost:3000/send-message'  # Change to your bot's endpoint
+WHATSAPP_BOT_API_URL = 'http://localhost:3001/send-message'  # Change to your bot's endpoint
 
 # Helper: get admin's WhatsApp number from DB
 def get_admin_whatsapp_number():
     admin = User.query.filter_by(username='admin').first()
-    if admin and hasattr(admin, 'MobileNumber'):
-        # Remove any + or spaces, just digits
-        return ''.join(filter(str.isdigit, str(admin.MobileNumber)))
+    print(f"Debug: admin found: {admin}")
+    if admin:
+        print(f"Debug: admin mobile number: {admin.MobileNumber}")
+        if admin.MobileNumber:
+            # Remove any + or spaces, just digits
+            mobile = ''.join(filter(str.isdigit, str(admin.MobileNumber)))
+            print(f"Debug: formatted mobile: {mobile}")
+            return mobile
+        else:
+            print("Debug: admin mobile number is None or empty")
+    else:
+        print("Debug: admin user not found")
     return None
 
 # Helper: send WhatsApp message via local WhatsApp Web bot
 # Assumes your bot exposes POST /send-message with JSON: {"phone": "<number>", "message": "..."}
 def send_whatsapp_otp(admin_number, otp, employee_username):
+    print(f"Debug: Sending OTP to {admin_number} for employee {employee_username}")
     message = f'OTP for {employee_username} login: {otp} (valid 60s)'
     payload = {
         'phone': admin_number,
         'message': message
     }
     try:
+        print(f"Debug: Making request to {WHATSAPP_BOT_API_URL} with payload: {payload}")
         resp = requests.post(WHATSAPP_BOT_API_URL, json=payload, timeout=10)
+        print(f"Debug: WhatsApp API response status: {resp.status_code}")
+        print(f"Debug: WhatsApp API response body: {resp.text}")
         return resp.status_code == 200
     except Exception as e:
         print('WhatsApp bot send error:', e)
@@ -423,7 +436,9 @@ def send_whatsapp_otp(admin_number, otp, employee_username):
 import functools
 
 def send_whatsapp_otp_to_admin(otp, employee_username):
+    print(f"Debug: send_whatsapp_otp_to_admin called for employee: {employee_username}")
     admin_number = get_admin_whatsapp_number()
+    print(f"Debug: got admin number: {admin_number}")
     if not admin_number:
         print('Admin WhatsApp number not found!')
         return False

@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css';
-import { LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle, ChevronUp, ChevronDown, Sun, Moon, Eye, EyeOff, User, Lock } from 'lucide-react';
+import { 
+  LogIn, LogOut, Plus, Save, X, Edit, Trash2, Loader2, CheckCircle, XCircle, 
+  ChevronUp, ChevronDown, Sun, Moon, Eye, EyeOff, User, Lock, Search, Filter,
+  Download, Upload, RefreshCw, BarChart3, Users, MapPin, DollarSign, 
+  Building2, Phone, Mail, Globe, TrendingUp, Activity, Zap, Shield,
+  Calendar, Clock, ArrowRight, Star, ChevronRight, Menu, Home, Settings
+} from 'lucide-react';
 
 const API = 'http://localhost:5000/api';
 
@@ -302,15 +308,17 @@ function Login({ onLogin }) {
 
 function MenuBar({ role, current, setCurrent, onLogout }) {
   const { darkMode, toggleDarkMode } = React.useContext(DarkModeContext);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   const menus = [
-    { key: 'home', label: 'Home' },
-    { key: 'centers', label: 'Centers' },
-    { key: 'collections', label: 'Collections' },
-    { key: 'sales', label: 'Sales' },
-    { key: 'employees', label: 'Employees', admin: true },
-    { key: 'accounts', label: 'Accounts' },
-    { key: 'center_account_details', label: 'Center Account Details' },
-    { key: 'contact', label: 'Contact Us' }
+    { key: 'home', label: 'Dashboard', icon: Home },
+    { key: 'centers', label: 'Centers', icon: Building2 },
+    { key: 'collections', label: 'Collections', icon: DollarSign },
+    { key: 'sales', label: 'Sales', icon: TrendingUp },
+    { key: 'employees', label: 'Employees', icon: Users, admin: true },
+    { key: 'accounts', label: 'Accounts', icon: BarChart3 },
+    { key: 'center_account_details', label: 'Account Details', icon: MapPin },
+    { key: 'contact', label: 'Contact', icon: Phone }
   ];
 
   const renderMenuItems = () => (
@@ -319,15 +327,17 @@ function MenuBar({ role, current, setCurrent, onLogout }) {
         (!m.admin || role === 'admin') && (
           <button
             key={m.key}
-            className={`w-full md:w-auto text-left md:text-center px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${darkMode ? 'focus:ring-offset-gray-800' : 'focus:ring-offset-white'} focus:ring-blue-500
+            className={`group flex items-center gap-2 w-full md:w-auto text-left md:text-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${darkMode ? 'focus:ring-offset-gray-800' : 'focus:ring-offset-white'} focus:ring-blue-500
               ${current === m.key
-                ? (darkMode ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-700')
-                : (darkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900')}`}
+                ? (darkMode ? 'bg-blue-500/20 text-blue-300 shadow-lg' : 'bg-blue-100 text-blue-700 shadow-md')
+                : (darkMode ? 'text-gray-300 hover:bg-gray-700/50 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900')}`}
             onClick={() => {
               setCurrent(m.key);
+              setMobileMenuOpen(false);
             }}
           >
-            {m.label}
+            <m.icon className="w-4 h-4" />
+            <span className="md:hidden lg:inline">{m.label}</span>
           </button>
         )
       )}
@@ -335,47 +345,78 @@ function MenuBar({ role, current, setCurrent, onLogout }) {
   );
 
   return (
-    <nav className={`sticky top-0 z-50 w-full transition-all duration-300 ${darkMode ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-xl shadow-lg border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo and Brand */}
-          <div className="flex items-center gap-3">
-            {/* Logo removed as per user request */}
-            <span className={`text-2xl font-bold tracking-tight ${darkMode ? 'text-white' : 'text-gray-800'}`}>VKSWebUI</span>
-          </div>
+    <>
+      <nav className={`sticky top-0 z-50 w-full transition-all duration-300 ${darkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-lg border-b ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo and Brand */}
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                <BarChart3 className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+              </div>
+              <div>
+                <span className={`text-xl font-bold tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>VKS</span>
+                <span className={`text-xl font-bold tracking-tight gradient-text`}>Portal</span>
+              </div>
+            </div>
 
-          {/* Desktop Menu Items */}
-          <div className="hidden md:flex items-center gap-1">
-            {renderMenuItems()}
-          </div>
+            {/* Desktop Menu Items */}
+            <div className="hidden md:flex items-center gap-2">
+              {renderMenuItems()}
+            </div>
 
-          {/* Right side controls */}
-          <div className="flex items-center gap-3">
-            <button
-              className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${darkMode ? 'bg-gray-700 text-yellow-400 hover:bg-gray-600 focus:ring-offset-gray-800' : 'bg-gray-200 text-blue-600 hover:bg-gray-300 focus:ring-offset-white'} focus:ring-blue-500`}
-              onClick={toggleDarkMode}
-              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-md bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              onClick={onLogout}
-              title="Logout"
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </button>
-          </div>
+            {/* Right side controls */}
+            <div className="flex items-center gap-3">
+              <button
+                className={`p-2.5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${darkMode ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700 focus:ring-offset-gray-900' : 'bg-gray-100 text-blue-600 hover:bg-gray-200 focus:ring-offset-white'} focus:ring-blue-500 shadow-md`}
+                onClick={toggleDarkMode}
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              
+              {/* User Menu */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-gray-100'} shadow-md`}>
+                <div className={`w-8 h-8 rounded-full ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'} flex items-center justify-center`}>
+                  <User className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} hidden sm:inline`}>
+                  {role === 'admin' ? 'Administrator' : 'Employee'}
+                </span>
+              </div>
+              
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                onClick={onLogout}
+                title="Logout"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
 
-          {/* Mobile menu button */}
-          
+              {/* Mobile menu button */}
+              <button
+                className={`md:hidden p-2.5 rounded-xl transition-all duration-200 ${darkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} shadow-md`}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                <Menu size={18} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile menu, show/hide based on menu state. */}
-      
-    </nav>
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+          <div className={`fixed top-16 left-0 right-0 ${darkMode ? 'bg-gray-900' : 'bg-white'} border-b ${darkMode ? 'border-gray-800' : 'border-gray-200'} shadow-lg`}>
+            <div className="px-4 py-4 space-y-2">
+              {renderMenuItems()}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -851,27 +892,114 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 transition-all duration-300">
-      <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-3">
-        <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} flex items-center gap-2`}>
-          {endpoint.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full align-middle" style={{marginTop:2, fontWeight: 'normal'}}>{sortedRows.length} records</span>
-        </h2>
-        <div className="flex items-center gap-2">
-          {canEdit && <button className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-600 transition-all duration-200" onClick={() => setAdding(true)}><Plus size={18}/> Add New</button>}
+      {/* Enhanced Header */}
+      <div className={`card-shadow rounded-2xl p-6 mb-8 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'} backdrop-blur-xl`}>
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div>
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-3 mb-2`}>
+              <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                {endpoint === 'centers' && <Building2 className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'collections' && <DollarSign className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'sales' && <TrendingUp className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'employees' && <Users className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'accounts' && <BarChart3 className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'center_account_details' && <MapPin className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+              </div>
+              {endpoint.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </h2>
+            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Manage and monitor your {endpoint.replace(/_/g, ' ')} data
+            </p>
+            <div className="flex items-center gap-4 mt-3">
+              <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${darkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                <Activity className="w-4 h-4" />
+                {sortedRows.length} records
+              </span>
+              {(Object.values(filters).some(v => v) || sortConfig.key) && (
+                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${darkMode ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-100 text-orange-700'}`}>
+                  <Filter className="w-4 h-4" />
+                  Filtered
+                </span>
+              )}
+            </div>
+          </div>
           
-          {(Object.values(filters).some(v => v) || sortConfig.key) && (
-            <button 
-              className={`bg-gray-200 text-gray-700 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm hover:bg-gray-300 transition-all duration-200 ${darkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : ''}`}
-              onClick={() => {
-                setFilters({});
-                setFilterConditions({});
-                setSortConfig({ key: null, direction: 'asc' });
-              }}
-              title="Clear all filters and sorting"
-            >
-              <X size={16}/> Clear
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {canEdit && (
+              <button 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                onClick={() => setAdding(true)}
+              >
+                <Plus size={18}/>
+                <span>Add New</span>
+              </button>
+            )}
+            
+            {(Object.values(filters).some(v => v) || sortConfig.key) && (
+              <button 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 ${darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                onClick={() => {
+                  setFilters({});
+                  setFilterConditions({});
+                  setSortConfig({ key: null, direction: 'asc' });
+                }}
+                title="Clear all filters and sorting"
+              >
+                <X size={16}/>
+                <span>Clear</span>
+              </button>
+            )}
+            
+            {['admin','ChiefAccountant','ChiefSupervisor'].includes(window.currentUserRole) && (
+              <div className="flex items-center gap-2">
+                <select
+                  className={`px-4 py-2.5 rounded-xl font-semibold cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white border-gray-600' : 'bg-green-500 hover:bg-green-600 text-white border-gray-300'}`}
+                  defaultValue=""
+                  onChange={e => {
+                    if (e.target.value === 'csv') exportCSV();
+                    else if (e.target.value === 'xlsx') exportXLSX();
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="" disabled>Export Data</option>
+                  <option value="csv">as CSV</option>
+                  <option value="xlsx">as XLSX</option>
+                </select>
+                <button
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${darkMode ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white'}`}
+                  type="button"
+                  disabled={importing}
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                >
+                  <Upload size={16}/>
+                  {importing ? 'Importing...' : 'Import'}
+                </button>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx"
+                  style={{ display: 'none' }}
+                  ref={fileInputRef}
+                  onChange={handleImport}
+                  disabled={importing}
+                />
+                {rejectedRows.length > 0 && (
+                  <select
+                    className={`px-4 py-2.5 rounded-xl font-semibold cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`}
+                    defaultValue=""
+                    onChange={e => {
+                      if (e.target.value === 'csv') downloadRejectedCSV();
+                      else if (e.target.value === 'xlsx') downloadRejectedXLSX();
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="" disabled>Rejected ({rejectedRows.length})</option>
+                    <option value="csv">Download CSV</option>
+                    <option value="xlsx">Download XLSX</option>
+                  </select>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
@@ -882,10 +1010,18 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
         </div>
       )}
 
-      {loading && <div className="flex items-center justify-center py-12 text-lg"><Loader2 className="animate-spin mr-3" size={24}/> Loading data, please wait...</div>}
+      {loading && (
+        <div className={`flex items-center justify-center py-16 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          <div className="text-center">
+            <Loader2 className="animate-spin mx-auto mb-4" size={32}/>
+            <p className="text-lg font-medium">Loading data, please wait...</p>
+          </div>
+        </div>
+      )}
       
-      <div className={`overflow-x-auto rounded-xl shadow-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} backdrop-blur-xl border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <table className="min-w-full bg-transparent">
+      <div className={`card-shadow hover:card-shadow-hover transition-all duration-300 rounded-2xl overflow-hidden ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'} backdrop-blur-xl`}>
+        <div className="overflow-x-auto">
+        <table className="min-w-full">
           <thead className={`sticky top-0 z-10 ${darkMode ? 'bg-gray-900/70' : 'bg-gray-100/70'}`}>
             <tr>
               {columns.map(col => (
@@ -968,61 +1104,48 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
           </tbody>
         </table>
         
-        {/* Pagination and Export/Import controls */}
-        <div className="flex flex-col md:flex-row items-center justify-between p-3 gap-4">
-          <div className="flex items-center gap-2">
-            <button className={`px-3 py-1 rounded-md transition-colors ${page === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'} ${darkMode ? (page === 1 ? 'bg-gray-700 text-gray-500' : 'bg-gray-600 hover:bg-gray-500 text-white') : ''}`} disabled={page === 1} onClick={() => setPage(page - 1)}>Prev</button>
-            <span className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Page {page} of {totalPages}</span>
-            <button className={`px-3 py-1 rounded-md transition-colors ${page === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'} ${darkMode ? (page === totalPages ? 'bg-gray-700 text-gray-500' : 'bg-gray-600 hover:bg-gray-500 text-white') : ''}`} disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</button>
-            <select className={`ml-2 border rounded-md px-2 py-1 transition-colors ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} value={rowsPerPage} onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(1); }}>
-              {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
-            </select>
+        {/* Enhanced Pagination */}
+        <div className={`flex flex-col sm:flex-row items-center justify-between p-6 ${darkMode ? 'bg-gray-900/30 border-gray-700' : 'bg-gray-50/50 border-gray-200'} border-t backdrop-blur-sm`}>
+          <div className="flex items-center gap-3 mb-4 sm:mb-0">
+            <button 
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${page === 1 ? (darkMode ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-md' : 'bg-white hover:bg-gray-50 text-gray-700 shadow-md')}`}
+              disabled={page === 1} 
+              onClick={() => setPage(page - 1)}
+            >
+              <ChevronDown className="w-4 h-4 rotate-90" />
+              Previous
+            </button>
+            <div className={`px-4 py-2 rounded-xl ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-700'} font-semibold shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              Page {page} of {totalPages}
+            </div>
+            <button 
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${page === totalPages ? (darkMode ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white shadow-md' : 'bg-white hover:bg-gray-50 text-gray-700 shadow-md')}`}
+              disabled={page === totalPages} 
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+              <ChevronDown className="w-4 h-4 -rotate-90" />
+            </button>
           </div>
           
+          <div className="flex items-center gap-3">
+            <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Rows per page:
+            </span>
+            <select 
+              className={`px-3 py-2 rounded-xl font-medium transition-all duration-200 shadow-sm border ${darkMode ? 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              value={rowsPerPage} 
+              onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
+            >
+              {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+          
           {['admin','ChiefAccountant','ChiefSupervisor'].includes(window.currentUserRole) && (
-            <div className="flex items-center gap-2">
-              <select
-                className={`bg-green-500 text-white px-3 py-2 rounded-lg shadow-md hover:bg-green-600 cursor-pointer transition-all duration-200 ${darkMode ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                defaultValue=""
-                onChange={e => {
-                  if (e.target.value === 'csv') exportCSV();
-                  else if (e.target.value === 'xlsx') exportXLSX();
-                  e.target.value = '';
-                }}
-              >
-                <option value="" disabled>Export Data</option>
-                <option value="csv">as CSV</option>
-                <option value="xlsx">as XLSX</option>
-              </select>
-              <button
-                className={`bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-md hover:bg-yellow-600 transition-all duration-200 ${darkMode ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
-                type="button"
-                disabled={importing}
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              >Import Data</button>
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                style={{ display: 'none' }}
-                ref={fileInputRef}
-                onChange={handleImport}
-                disabled={importing}
-              />
-              {rejectedRows.length > 0 && (
-                <select
-                  className={`bg-red-500 text-white px-3 py-2 rounded-lg shadow-md hover:bg-red-600 cursor-pointer transition-all duration-200 ${darkMode ? 'bg-red-600 hover:bg-red-700' : ''}`}
-                  defaultValue=""
-                  onChange={e => {
-                    if (e.target.value === 'csv') downloadRejectedCSV();
-                    else if (e.target.value === 'xlsx') downloadRejectedXLSX();
-                    e.target.value = '';
-                  }}
-                >
-                  <option value="" disabled>Rejected ({rejectedRows.length})</option>
-                  <option value="csv">Download CSV</option>
-                  <option value="xlsx">Download XLSX</option>
-                </select>
-              )}
+            <div className={`flex items-center gap-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+              <Activity className="w-4 h-4" />
+              <span>Quick actions available above</span>
             </div>
           )}
         </div>
@@ -1058,47 +1181,255 @@ function AppContent() {
   let content;
   if (menu === 'home') {
     content = (
-      <div className={`flex flex-col items-center justify-center text-center py-16 px-4 transition-all duration-500 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-        <h1 className={`text-3xl md:text-4xl font-bold mb-2 flex items-center justify-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Welcome to VKSWebUI</h1>
-        <p className={`text-base md:text-lg max-w-2xl mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-          Your central hub for managing centers, collections, sales, and more. Navigate through the app using the menu above.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
-          {TABLES && Object.keys(TABLES).map(key => (
-            <div key={key} className={`p-6 rounded-xl shadow-lg transition-all duration-300 cursor-pointer ${darkMode ? 'bg-gray-800/80 hover:bg-gray-700/80' : 'bg-white/80 hover:bg-blue-50/80'} backdrop-blur-md border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`} onClick={() => setMenu(key)}>
-              <h3 className={`text-lg font-semibold mb-1 flex items-center gap-2 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
-              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Manage {key.replace(/_/g, ' ')} data.</p>
+      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'}`}>
+        {/* Hero Section */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center animate-fade-in-up">
+              <div className="flex items-center justify-center mb-6">
+                <div className={`p-4 rounded-2xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'} shadow-lg`}>
+                  <BarChart3 className={`w-12 h-12 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+              </div>
+              <h1 className={`text-4xl md:text-6xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Welcome to <span className="gradient-text">VKS Business Portal</span>
+              </h1>
+              <p className={`text-xl md:text-2xl max-w-3xl mx-auto mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                Your comprehensive business management solution. Monitor, analyze, and optimize your operations with powerful tools and insights.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4 mb-12">
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${darkMode ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'}`}>
+                  <Shield className="w-4 h-4" />
+                  <span className="font-medium">Secure</span>
+                </div>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                  <Zap className="w-4 h-4" />
+                  <span className="font-medium">Fast</span>
+                </div>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                  <Activity className="w-4 h-4" />
+                  <span className="font-medium">Real-time</span>
+                </div>
+              </div>
             </div>
-          ))}
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Building2, label: 'Centers', value: '12', change: '+2.5%', color: 'blue' },
+              { icon: DollarSign, label: 'Collections', value: '₹2.5M', change: '+15.3%', color: 'green' },
+              { icon: TrendingUp, label: 'Sales', value: '₹1.8M', change: '+8.7%', color: 'purple' },
+              { icon: Users, label: 'Employees', value: '48', change: '+5.2%', color: 'orange' }
+            ].map((stat, index) => (
+              <div key={index} className={`card-shadow hover:card-shadow-hover transition-all duration-300 rounded-2xl p-6 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'} group cursor-pointer animate-fade-in-up`} style={{ animationDelay: `${index * 0.1}s` }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${
+                    stat.color === 'blue' ? (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600') :
+                    stat.color === 'green' ? (darkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600') :
+                    stat.color === 'purple' ? (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600') :
+                    (darkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600')
+                  } group-hover:scale-110 transition-transform duration-300`}>
+                    <stat.icon className="w-6 h-6" />
+                  </div>
+                  <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
+                    {stat.change}
+                  </span>
+                </div>
+                <h3 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stat.value}</h3>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Dashboard Grid */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* Quick Actions */}
+            <div className="lg:col-span-2">
+              <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Quick Actions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.keys(TABLES).map((key, index) => {
+                  const icons = {
+                    centers: Building2,
+                    collections: DollarSign,
+                    sales: TrendingUp,
+                    employees: Users,
+                    accounts: BarChart3,
+                    center_account_details: MapPin
+                  };
+                  const IconComponent = icons[key] || BarChart3;
+                  const colors = ['blue', 'green', 'purple', 'orange', 'pink', 'indigo'];
+                  const color = colors[index % colors.length];
+                  
+                  return (
+                    <div 
+                      key={key} 
+                      className={`group card-shadow hover:card-shadow-hover transition-all duration-300 rounded-xl p-6 cursor-pointer ${darkMode ? 'bg-gray-800/80 border border-gray-700 hover:bg-gray-700/80' : 'bg-white border border-gray-100 hover:bg-blue-50/50'} animate-fade-in-up`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                      onClick={() => setMenu(key)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${
+                          color === 'blue' ? (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600') :
+                          color === 'green' ? (darkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600') :
+                          color === 'purple' ? (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600') :
+                          color === 'orange' ? (darkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600') :
+                          color === 'pink' ? (darkMode ? 'bg-pink-500/20 text-pink-400' : 'bg-pink-100 text-pink-600') :
+                          (darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600')
+                        } group-hover:scale-110 transition-transform duration-300`}>
+                          <IconComponent className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className={`text-lg font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </h3>
+                          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Manage {key.replace(/_/g, ' ')} data and operations
+                          </p>
+                        </div>
+                        <ChevronRight className={`w-5 h-5 ${darkMode ? 'text-gray-400' : 'text-gray-400'} group-hover:text-blue-500 transition-colors`} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Activity Feed */}
+            <div>
+              <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Recent Activity</h2>
+              <div className={`card-shadow rounded-xl p-6 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'}`}>
+                <div className="space-y-4">
+                  {[
+                    { icon: Plus, text: 'New center added in Mumbai', time: '2 hours ago', color: 'green' },
+                    { icon: TrendingUp, text: 'Sales report generated', time: '4 hours ago', color: 'blue' },
+                    { icon: Users, text: 'Employee access updated', time: '6 hours ago', color: 'purple' },
+                    { icon: DollarSign, text: 'Collection data synced', time: '8 hours ago', color: 'orange' }
+                  ].map((activity, index) => (
+                    <div key={index} className="flex items-start gap-3 group">
+                      <div className={`p-2 rounded-lg ${
+                        activity.color === 'green' ? (darkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600') :
+                        activity.color === 'blue' ? (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600') :
+                        activity.color === 'purple' ? (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600') :
+                        (darkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600')
+                      }`}>
+                        <activity.icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activity.text}
+                        </p>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {activity.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button className={`w-full text-center text-sm font-medium ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} transition-colors`}>
+                    View all activity
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   } else if (menu === 'contact') {
     content = (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-        <h1 className={`text-4xl md:text-5xl font-extrabold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Get in Touch</h1>
-        <p className={`text-lg md:text-xl max-w-2xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>We're here to help. Contact us through any of our offices.</p>
-        <div className={`rounded-2xl shadow-2xl p-6 md:p-8 mt-4 w-full max-w-6xl transition-all duration-500 ${darkMode ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-xl border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          {contact ? (
-            <div className="w-full flex flex-col lg:flex-row lg:items-start lg:justify-center gap-8">
-              {/* Head Office */}
-              <div className={`flex-1 min-w-[300px] rounded-xl p-6 transition-all duration-500 text-left ${darkMode ? 'bg-gray-700/50' : 'bg-blue-50/50'}`}>
-                <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Head Office</h2>
-                <p className="mb-2"><strong className="font-semibold">Address:</strong> {contact.head_office?.address}</p>
-                <p className="mb-2"><strong className="font-semibold">Email:</strong> <a href={`mailto:${contact.head_office?.email}`} className="text-blue-400 hover:underline">{contact.head_office?.email}</a></p>
-                <p><strong className="font-semibold">Phone:</strong> <a href={`tel:${contact.head_office?.phone?.replace(/\s+/g, '')}`} className="text-blue-400 hover:underline">{contact.head_office?.phone}</a></p>
+      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-16 animate-fade-in-up">
+            <div className="flex items-center justify-center mb-6">
+              <div className={`p-4 rounded-2xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'} shadow-lg`}>
+                <Phone className={`w-12 h-12 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
               </div>
+            </div>
+            <h1 className={`text-4xl md:text-5xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Get in <span className="gradient-text">Touch</span>
+            </h1>
+            <p className={`text-xl max-w-3xl mx-auto ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              We're here to help you succeed. Reach out through any of our offices or contact channels.
+            </p>
+          </div>
+          
+          {contact ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              {/* Head Office */}
+              <div className={`card-shadow hover:card-shadow-hover transition-all duration-500 rounded-2xl p-8 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'} animate-fade-in-up`}>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className={`p-3 rounded-xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                    <Building2 className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                  </div>
+                  <h2 className={`text-2xl font-bold ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Head Office</h2>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className={`w-5 h-5 mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <div>
+                      <p className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Address</p>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{contact.head_office?.address}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Mail className={`w-5 h-5 mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <div>
+                      <p className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Email</p>
+                      <a href={`mailto:${contact.head_office?.email}`} className="text-blue-500 hover:text-blue-600 transition-colors font-medium">
+                        {contact.head_office?.email}
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Phone className={`w-5 h-5 mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <div>
+                      <p className={`font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Phone</p>
+                      <a href={`tel:${contact.head_office?.phone?.replace(/\s+/g, '')}`} className="text-blue-500 hover:text-blue-600 transition-colors font-medium">
+                        {contact.head_office?.phone}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               {/* Branches */}
               {Array.isArray(contact.branches) && contact.branches.length > 0 && (
-                <div className="flex-1 min-w-[300px] text-left">
-                  <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>Our Branches</h2>
-                  <div className="space-y-4">
+                <div>
+                  <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-blue-300' : 'text-blue-800'} flex items-center gap-3`}>
+                    <Globe className="w-6 h-6" />
+                    Our Branches
+                  </h2>
+                  <div className="space-y-6">
                     {contact.branches.map((branch, idx) => (
-                      <div key={idx} className={`rounded-xl p-4 transition-all duration-500 ${darkMode ? 'bg-gray-700/50' : 'bg-blue-50/50'}`}>
-                        <h3 className={`font-bold text-lg mb-1 ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>{branch.name}</h3>
-                        <p className="mb-1"><strong className="font-semibold">Address:</strong> {branch.address}</p>
-                        <p className="mb-1"><strong className="font-semibold">Email:</strong> <a href={`mailto:${branch.email}`} className="text-blue-400 hover:underline">{branch.email}</a></p>
-                        <p><strong className="font-semibold">Phone:</strong> <a href={`tel:${branch.phone?.replace(/\s+/g, '')}`} className="text-blue-400 hover:underline">{branch.phone}</a></p>
+                      <div key={idx} className={`card-shadow hover:card-shadow-hover transition-all duration-500 rounded-xl p-6 ${darkMode ? 'bg-gray-800/80 border border-gray-700' : 'bg-white border border-gray-100'} animate-fade-in-up`} style={{ animationDelay: `${idx * 0.1}s` }}>
+                        <h3 className={`font-bold text-lg mb-4 ${darkMode ? 'text-blue-400' : 'text-blue-700'} flex items-center gap-2`}>
+                          <Star className="w-5 h-5" />
+                          {branch.name}
+                        </h3>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <MapPin className={`w-4 h-4 mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{branch.address}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <a href={`mailto:${branch.email}`} className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors text-sm font-medium">
+                              <Mail className="w-4 h-4" />
+                              {branch.email}
+                            </a>
+                            <a href={`tel:${branch.phone?.replace(/\s+/g, '')}`} className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors text-sm font-medium">
+                              <Phone className="w-4 h-4" />
+                              {branch.phone}
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1106,7 +1437,12 @@ function AppContent() {
               )}
             </div>
           ) : (
-            <div className="text-gray-500 flex items-center justify-center gap-3"><Loader2 className="animate-spin" /> Loading contact information...</div>
+            <div className={`flex items-center justify-center py-16 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <div className="text-center">
+                <Loader2 className="animate-spin mx-auto mb-4" size={32}/>
+                <p className="text-lg font-medium">Loading contact information...</p>
+              </div>
+            </div>
           )}
         </div>
       </div>
