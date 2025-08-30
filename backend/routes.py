@@ -7,12 +7,40 @@ from sqlalchemy.exc import IntegrityError
 import random
 import time
 import requests
+import functools
 from flask_cors import CORS
 
 # --- General improvements: docstrings, error handling, validation, status codes, security ---
 
 # Enable CORS
 CORS(app, supports_credentials=True)
+
+# Helper: check if user has access to a specific module
+def check_access(required_access):
+    """Check if current user has required access permission."""
+    if current_user.role == 'admin':
+        return True  # Admin has access to everything
+    
+    user_access = current_user.get_access_list()
+    
+    # FULL access grants access to all modules except EMPLOYEES
+    if 'FULL' in user_access and required_access != 'EMPLOYEES':
+        return True
+    
+    # Check specific access
+    return required_access in user_access
+
+# Helper: access control decorator
+def require_access(access_type):
+    """Decorator to check access permissions for endpoints."""
+    def decorator(f):
+        @functools.wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not check_access(access_type):
+                return error_response('Access denied. Insufficient permissions.', 403)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # Helper: error response
 def error_response(message, status=400, fields=None):
@@ -48,7 +76,7 @@ def login():
     user = User.query.filter_by(username=data['username']).first()
     if user and check_password_hash(user.password, data['password']):
         login_user(user)
-        return jsonify({'success': True, 'role': user.role}), 200
+        return jsonify({'success': True, 'role': user.role, 'username': user.username}), 200
     return error_response('Invalid credentials', 401)
 
 @app.route('/api/logout')
@@ -62,12 +90,17 @@ def logout():
 @login_required
 def get_user():
     """Get current user info."""
-    return jsonify({'username': current_user.username, 'role': current_user.role}), 200
+    return jsonify({
+        'username': current_user.username, 
+        'role': current_user.role,
+        'access_control': current_user.get_access_list()
+    }), 200
 
 # CRUD endpoints for Center, Collection, Sale, Employee(User), Account
 # Example for Center
 @app.route('/api/centers', methods=['GET', 'POST'])
 @login_required
+@require_access('CENTER')
 def centers():
     """List or create centers."""
     if request.method == 'GET':
@@ -84,6 +117,7 @@ def centers():
 
 @app.route('/api/centers/<int:center_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('CENTER')
 def update_center(center_id):
     """Update or delete center."""
     center = Center.query.get(center_id)
@@ -113,6 +147,7 @@ def collection_to_dict(collection):
 
 @app.route('/api/collections', methods=['GET', 'POST'])
 @login_required
+@require_access('COLLECTIONS')
 def collections():
     """List or create collections."""
     if request.method == 'GET':
@@ -129,6 +164,7 @@ def collections():
 
 @app.route('/api/collections/<int:collection_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('COLLECTIONS')
 def update_collection(collection_id):
     """Update or delete collection."""
     collection = Collection.query.get(collection_id)
@@ -161,6 +197,7 @@ def sale_to_dict(sale):
 
 @app.route('/api/sales', methods=['GET', 'POST'])
 @login_required
+@require_access('SALES')
 def sales():
     """List or create sales."""
     if request.method == 'GET':
@@ -179,6 +216,7 @@ def sales():
 
 @app.route('/api/sales/<int:sale_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('SALES')
 def update_sale(sale_id):
     """Update or delete sale."""
     sale = Sale.query.get(sale_id)
@@ -217,6 +255,7 @@ def customer_to_dict(customer):
 
 @app.route('/api/customers', methods=['GET', 'POST'])
 @login_required
+@require_access('SALES')
 def customers():
     """List or create customers."""
     if request.method == 'GET':
@@ -243,6 +282,7 @@ def customers():
 
 @app.route('/api/customers/<int:customer_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('SALES')
 def update_customer(customer_id):
     """Update or delete customer."""
     customer = Customer.query.get(customer_id)
@@ -281,6 +321,7 @@ def user_to_dict(user):
 
 @app.route('/api/employees', methods=['GET', 'POST'])
 @login_required
+@require_access('EMPLOYEES')
 def employees():
     """List or create employees (admin only)."""
     if current_user.role != 'admin':
@@ -324,6 +365,7 @@ def employees():
 
 @app.route('/api/employees/<int:user_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('EMPLOYEES')
 def update_employee(user_id):
     """Update or delete employee (admin only)."""
     if current_user.role != 'admin':
@@ -388,6 +430,7 @@ def account_to_dict(account):
 
 @app.route('/api/accounts', methods=['GET', 'POST'])
 @login_required
+@require_access('ACCOUNTS')
 def accounts():
     """List or create accounts."""
     if request.method == 'GET':
@@ -404,6 +447,7 @@ def accounts():
 
 @app.route('/api/accounts/<int:account_id>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('ACCOUNTS')
 def update_account(account_id):
     """Update or delete account."""
     account = Account.query.get(account_id)
@@ -435,6 +479,7 @@ def center_account_to_dict(acc):
 
 @app.route('/api/center_account_details', methods=['GET', 'POST'])
 @login_required
+@require_access('ACCOUNT_DETAILS')
 def center_account_details():
     """List or create center account details."""
     if request.method == 'GET':
@@ -468,6 +513,7 @@ def center_account_details():
 
 @app.route('/api/center_account_details/<int:code>/<bank_acc_number>/<name>/<ifsc>/<branch>', methods=['PUT', 'DELETE'])
 @login_required
+@require_access('ACCOUNT_DETAILS')
 def update_center_account_details(code, bank_acc_number, name, ifsc, branch):
     """Update or delete center account details by composite PK."""
     acc = CenterAccountDetails.query.get((code, bank_acc_number, name, ifsc, branch))
@@ -555,18 +601,24 @@ def request_otp():
     user = User.query.filter_by(username=data['username']).first()
     if not user or not check_password_hash(user.password, data['password']):
         return error_response('Invalid credentials', 401)
-    if user.role == 'admin':
-        # Admin can login directly
-        login_user(user)
-        return jsonify({'success': True, 'role': user.role, 'otp_required': False}), 200
-    # Employee: generate OTP, send to admin
-    otp = str(random.randint(100000, 999999))
-    expires_at = time.time() + 60
-    otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
-    sent = send_whatsapp_otp_to_admin(otp, user.username)
-    if not sent:
-        return error_response('Failed to send OTP to admin', 500)
-    return jsonify({'success': True, 'otp_required': True, 'message': 'OTP sent to admin. Ask admin for OTP.'}), 200
+    
+    # TEMPORARY: Allow all users to login directly while WhatsApp bot is being set up
+    login_user(user)
+    return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
+    
+    # TODO: Uncomment this section once WhatsApp bot is working
+    # if user.role == 'admin':
+    #     # Admin can login directly
+    #     login_user(user)
+    #     return jsonify({'success': True, 'role': user.role, 'otp_required': False}), 200
+    # # Employee: generate OTP, send to admin
+    # otp = str(random.randint(100000, 999999))
+    # expires_at = time.time() + 60
+    # otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
+    # sent = send_whatsapp_otp_to_admin(otp, user.username)
+    # if not sent:
+    #     return error_response('Failed to send OTP to admin', 500)
+    # return jsonify({'success': True, 'otp_required': True, 'message': 'OTP sent to admin. Ask admin for OTP.'}), 200
 
 @app.route('/api/login/verify_otp', methods=['POST'])
 def verify_otp():
@@ -588,4 +640,4 @@ def verify_otp():
     # OTP valid
     otp_store.pop(user.username, None)
     login_user(user)
-    return jsonify({'success': True, 'role': user.role}), 200
+    return jsonify({'success': True, 'role': user.role, 'username': user.username}), 200

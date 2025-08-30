@@ -59,7 +59,14 @@ function Login({ onLogin }) {
         setStep(2);
         setTimer(60);
       } else {
-        onLogin(data.role);
+        // Fetch full user data including access control
+        const userRes = await fetch(`${API}/user`, { credentials: 'include' });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          onLogin({ role: userData.role, username: userData.username, access_control: userData.access_control });
+        } else {
+          onLogin({ role: data.role, username: data.username, access_control: [] });
+        }
       }
     } else {
       setError('Invalid credentials');
@@ -79,7 +86,14 @@ function Login({ onLogin }) {
     setWaiting(false);
     if (res.ok) {
       const data = await res.json();
-      onLogin(data.role);
+      // Fetch full user data including access control
+      const userRes = await fetch(`${API}/user`, { credentials: 'include' });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        onLogin({ role: userData.role, username: userData.username, access_control: userData.access_control });
+      } else {
+        onLogin({ role: data.role, username: data.username, access_control: [] });
+      }
     } else {
       setError('Invalid or expired OTP');
     }
@@ -306,26 +320,14 @@ function Login({ onLogin }) {
   );
 }
 
-function MenuBar({ role, current, setCurrent, onLogout }) {
+function MenuBar({ user, current, setCurrent, onLogout, menus, hasAccess }) {
   const { darkMode, toggleDarkMode } = React.useContext(DarkModeContext);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  const menus = [
-    { key: 'home', label: 'Dashboard', icon: Home },
-    { key: 'centers', label: 'Centers', icon: Building2 },
-    { key: 'customers', label: 'Customers', icon: User },
-    { key: 'collections', label: 'Collections', icon: DollarSign },
-    { key: 'sales', label: 'Sales', icon: TrendingUp },
-    { key: 'employees', label: 'Employees', icon: Users, admin: true },
-    { key: 'accounts', label: 'Accounts', icon: BarChart3 },
-    { key: 'center_account_details', label: 'Account Details', icon: MapPin },
-    { key: 'contact', label: 'Contact', icon: Phone }
-  ];
 
   const renderMenuItems = () => (
     <>
       {menus.map((m) =>
-        (!m.admin || role === 'admin') && (
+        hasAccess(m) && (
           <button
             key={m.key}
             className={`group flex items-center gap-2 w-full md:w-auto text-left md:text-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${darkMode ? 'focus:ring-offset-gray-800' : 'focus:ring-offset-white'} focus:ring-blue-500
@@ -382,7 +384,7 @@ function MenuBar({ role, current, setCurrent, onLogout }) {
                   <User className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                 </div>
                 <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'} hidden sm:inline`}>
-                  {role === 'admin' ? 'Administrator' : 'Employee'}
+                  {user.role === 'admin' ? user.username + ' (Admin)' : user.username}
                 </span>
               </div>
               
@@ -1305,7 +1307,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
 
 function AppContent() {
   const { darkMode } = React.useContext(DarkModeContext);
-  const [role, setRole] = useState(null);
+  const [user, setUser] = useState(null); // Changed from role to user object
   const [menu, setMenu] = useState('home');
   const [contact, setContact] = React.useState(null);
 
@@ -1319,13 +1321,46 @@ function AppContent() {
 
   const handleLogout = async () => {
     await fetch(`${API}/logout`, { credentials: 'include' });
-    setRole(null);
+    setUser(null);
   };
 
-  if (!role) return <Login onLogin={setRole} />;
+  if (!user) return <Login onLogin={setUser} />;
+
+  // Define menus with access control
+  const menus = [
+    { key: 'home', label: 'Dashboard', icon: Home, access: null }, // Dashboard accessible to all
+    { key: 'centers', label: 'Centers', icon: Building2, access: 'CENTER' },
+    { key: 'customers', label: 'Customers', icon: User, access: 'SALES' },
+    { key: 'collections', label: 'Collections', icon: DollarSign, access: 'COLLECTIONS' },
+    { key: 'sales', label: 'Sales', icon: TrendingUp, access: 'SALES' },
+    { key: 'employees', label: 'Employees', icon: Users, admin: true, access: 'EMPLOYEES' },
+    { key: 'accounts', label: 'Accounts', icon: BarChart3, access: 'ACCOUNTS' },
+    { key: 'center_account_details', label: 'Account Details', icon: MapPin, access: 'ACCOUNT_DETAILS' },
+    { key: 'contact', label: 'Contact', icon: Phone, access: null } // Contact accessible to all
+  ];
+
+  // Helper function to check if user has access to a menu item
+  const hasAccess = (menuItem) => {
+    // Admin has access to everything
+    if (user.role === 'admin') return true;
+    
+    // If no access requirement, allow access
+    if (!menuItem.access) return true;
+    
+    // If admin-only menu item and user is not admin
+    if (menuItem.admin && user.role !== 'admin') return false;
+    
+    const userAccess = user.access_control || [];
+    
+    // FULL access grants access to all except EMPLOYEES
+    if (userAccess.includes('FULL') && menuItem.access !== 'EMPLOYEES') return true;
+    
+    // Check specific access
+    return userAccess.includes(menuItem.access);
+  };
 
   // Set global user role for export button access
-  window.currentUserRole = role;
+  window.currentUserRole = user.role;
 
   let content;
   if (menu === 'home') {
@@ -1597,13 +1632,35 @@ function AppContent() {
       </div>
     );
   } else {
-    const { columns, keyFields } = TABLES[menu];
-    content = <CrudTable endpoint={menu} columns={columns} keyFields={keyFields} canEdit={role === 'admin' || menu !== 'employees'} />;
+    // Check if user has access to the requested menu
+    const menuItem = menus.find(m => m.key === menu);
+    if (!menuItem || !hasAccess(menuItem)) {
+      content = (
+        <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          <div className={`text-center p-8 rounded-xl ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} shadow-lg`}>
+            <div className="mb-4">
+              <Shield className="w-16 h-16 mx-auto text-red-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-gray-500 mb-4">You don't have permission to access this section.</p>
+            <button
+              onClick={() => setMenu('home')}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    } else {
+      const { columns, keyFields } = TABLES[menu];
+      content = <CrudTable endpoint={menu} columns={columns} keyFields={keyFields} canEdit={user.role === 'admin' || menu !== 'employees'} />;
+    }
   }
 
   return (
     <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <MenuBar role={role} current={menu} setCurrent={setMenu} onLogout={handleLogout} />
+      <MenuBar user={user} current={menu} setCurrent={setMenu} onLogout={handleLogout} menus={menus} hasAccess={hasAccess} />
       <main className="w-full">
         {content}
       </main>
