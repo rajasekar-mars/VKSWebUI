@@ -313,6 +313,7 @@ function MenuBar({ role, current, setCurrent, onLogout }) {
   const menus = [
     { key: 'home', label: 'Dashboard', icon: Home },
     { key: 'centers', label: 'Centers', icon: Building2 },
+    { key: 'customers', label: 'Customers', icon: User },
     { key: 'collections', label: 'Collections', icon: DollarSign },
     { key: 'sales', label: 'Sales', icon: TrendingUp },
     { key: 'employees', label: 'Employees', icon: Users, admin: true },
@@ -442,9 +443,21 @@ const TABLES = {
       { key: 'quantity', label: 'Quantity' },
       { key: 'price', label: 'Price' },
       { key: 'date', label: 'Date' },
-      { key: 'center_id', label: 'Center ID' }
+      { key: 'customer_id', label: 'Customer ID' }
     ],
-    keyFields: ['date', 'center_id', 'item']
+    keyFields: ['date', 'customer_id', 'item']
+  },
+  customers: {
+    columns: [
+      { key: 'name', label: 'Name' },
+      { key: 'gst_number', label: 'GST Number' },
+      { key: 'account_number', label: 'Account Number' },
+      { key: 'ifsc_code', label: 'IFSC Code' },
+      { key: 'bank', label: 'Bank' },
+      { key: 'address', label: 'Address' },
+      { key: 'mobile_number', label: 'Mobile Number' }
+    ],
+    keyFields: ['name', 'mobile_number']
   },
   employees: {
     columns: [
@@ -495,6 +508,7 @@ function getRowKeyFields(row, keyFields) {
 function CrudTable({ endpoint, columns, canEdit = true }) {
   const { darkMode } = React.useContext(DarkModeContext);
   const [rows, setRows] = React.useState([]);
+  const [accessControlOptions, setAccessControlOptions] = React.useState([]);
   // Export helpers
   // Import helpers
   const [importing, setImporting] = React.useState(false);
@@ -704,6 +718,8 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
     setPage(1); // Reset page to 1 when endpoint changes
     setRejectedRows([]); // Clear rejectedRows when switching screens
     setLoading(true);
+    
+    // Fetch main data
     fetch(`${API}/${endpoint}`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
@@ -711,6 +727,16 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       })
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
+    
+    // Fetch access control options if this is employees endpoint
+    if (endpoint === 'employees') {
+      fetch(`${API}/access_control_options`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(options => {
+          setAccessControlOptions(Array.isArray(options) ? options : []);
+        })
+        .catch(() => setAccessControlOptions([]));
+    }
   }, [endpoint]);
 
   const showToast = (msg, type = 'success') => {
@@ -737,7 +763,17 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
 
   const handleEdit = (row) => {
     setEditKey(getRowKey(row, columns));
-    setEditRow({ ...row });
+    // For employees with AccessControl, ensure it's properly formatted
+    const editData = { ...row };
+    if (endpoint === 'employees' && editData.AccessControl) {
+      // Ensure AccessControl is an array
+      if (!Array.isArray(editData.AccessControl)) {
+        editData.AccessControl = typeof editData.AccessControl === 'string' 
+          ? editData.AccessControl.split(',').map(item => item.trim()).filter(Boolean)
+          : [];
+      }
+    }
+    setEditRow(editData);
   };
   const handleSave = async (row) => {
     setError('');
@@ -782,8 +818,11 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       result = null;
     }
     if (res.ok && result && result.success) {
-      setRows(rows.map(r => getRowKey(r, columns) === editKey ? result.data || result : r));
+      // Update the row with the response data
+      const updatedItem = result.data || result;
+      setRows(rows.map(r => getRowKey(r, columns) === editKey ? updatedItem : r));
       setEditKey(null);
+      setEditRow({});
       showToast('Saved!', 'success');
     } else {
       const msg = (result && result.message) ? result.message : 'Save failed';
@@ -831,7 +870,14 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       result = null;
     }
     if (res.ok && result && result.success) {
-      setRows([...rows, result.data || result]);
+      // For employees endpoint, we get the full list back, so use that
+      if (endpoint === 'employees' && Array.isArray(result.data)) {
+        setRows(result.data);
+      } else {
+        // For other endpoints, add the new item to existing rows
+        const newItem = result.data || result;
+        setRows([...rows, newItem]);
+      }
       setAdding(false);
       setNewRow({});
       showToast('Added!', 'success');
@@ -860,6 +906,76 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       }
     })
   );
+
+  // MultiSelect AccessControl Component
+  const MultiSelectAccessControl = ({ value, onChange, options, darkMode }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const dropdownRef = React.useRef();
+    
+    // Ensure value is always an array
+    const selectedValues = React.useMemo(() => {
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string' && value) {
+        return value.split(',').map(item => item.trim()).filter(Boolean);
+      }
+      return [];
+    }, [value]);
+    
+    React.useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+    
+    const toggleOption = (option) => {
+      let newValues;
+      if (selectedValues.includes(option)) {
+        newValues = selectedValues.filter(v => v !== option);
+      } else {
+        newValues = [...selectedValues, option];
+      }
+      onChange(newValues);
+    };
+    
+    const displayText = selectedValues.length === 0 
+      ? 'Select access...' 
+      : selectedValues.length === 1 
+        ? selectedValues[0] 
+        : `${selectedValues.length} selected`;
+    
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          className={`w-full px-3 py-2 text-left border rounded-md focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="truncate">{displayText}</span>
+          <ChevronDown className={`float-right mt-1 w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {isOpen && (
+          <div className={`absolute z-50 w-full mt-1 border rounded-md shadow-lg max-h-60 overflow-auto ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}>
+            {options.map(option => (
+              <label key={option} className={`flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer ${darkMode ? 'hover:bg-gray-600 text-white' : 'text-gray-700'}`}>
+                <input
+                  type="checkbox"
+                  className="mr-2"
+                  checked={selectedValues.includes(option)}
+                  onChange={() => toggleOption(option)}
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Sorting logic
   const sortedRows = React.useMemo(() => {
@@ -899,6 +1015,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
             <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} flex items-center gap-3 mb-2`}>
               <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
                 {endpoint === 'centers' && <Building2 className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
+                {endpoint === 'customers' && <User className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
                 {endpoint === 'collections' && <DollarSign className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
                 {endpoint === 'sales' && <TrendingUp className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
                 {endpoint === 'employees' && <Users className={`w-6 h-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />}
@@ -1064,9 +1181,27 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
                   {columns.map(col => (
                     <td key={col.key} className={`p-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {editKey === rowKey ? (
-                        <input className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} value={editRow[col.key] || ''} onChange={e => setEditRow({ ...editRow, [col.key]: e.target.value })} />
+                        col.key === 'AccessControl' && endpoint === 'employees' ? (
+                          <MultiSelectAccessControl
+                            value={editRow[col.key] || []}
+                            onChange={(newValue) => setEditRow({ ...editRow, [col.key]: newValue })}
+                            options={accessControlOptions}
+                            darkMode={darkMode}
+                          />
+                        ) : (
+                          <input 
+                            className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} 
+                            value={editRow[col.key] || ''} 
+                            onChange={e => setEditRow({ ...editRow, [col.key]: e.target.value })} 
+                            placeholder={col.key === 'password' ? 'Enter new password' : `Enter ${col.label.toLowerCase()}`}
+                          />
+                        )
                       ) : (
-                        row[col.key]
+                        col.key === 'AccessControl' && endpoint === 'employees' 
+                          ? (Array.isArray(row[col.key]) 
+                              ? row[col.key].join(', ') 
+                              : (row[col.key] || '').toString())
+                          : row[col.key]
                       )}
                     </td>
                   ))}
@@ -1092,7 +1227,21 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
               <tr className={`${darkMode ? 'bg-gray-700/50' : 'bg-yellow-50/50'}`}>
                 {columns.map(col => (
                   <td key={col.key} className="p-3">
-                    <input className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} value={newRow[col.key] || ''} onChange={e => setNewRow({ ...newRow, [col.key]: e.target.value })} />
+                    {col.key === 'AccessControl' && endpoint === 'employees' ? (
+                      <MultiSelectAccessControl
+                        value={newRow[col.key] || []}
+                        onChange={(newValue) => setNewRow({ ...newRow, [col.key]: newValue })}
+                        options={accessControlOptions}
+                        darkMode={darkMode}
+                      />
+                    ) : (
+                      <input 
+                        className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} 
+                        value={newRow[col.key] || ''} 
+                        onChange={e => setNewRow({ ...newRow, [col.key]: e.target.value })} 
+                        placeholder={col.key === 'password' ? 'Enter password' : `Enter ${col.label.toLowerCase()}`}
+                      />
+                    )}
                   </td>
                 ))}
                 <td className="p-3 flex items-center gap-3">
@@ -1195,9 +1344,9 @@ function AppContent() {
               <h1 className={`text-4xl md:text-6xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Welcome to <span className="gradient-text">VKS Business Portal</span>
               </h1>
-              <p className={`text-xl md:text-2xl max-w-3xl mx-auto mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {/* <p className={`text-xl md:text-2xl max-w-3xl mx-auto mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 Your comprehensive business management solution. Monitor, analyze, and optimize your operations with powerful tools and insights.
-              </p>
+              </p> */}
               <div className="flex flex-wrap justify-center gap-4 mb-12">
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${darkMode ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'}`}>
                   <Shield className="w-4 h-4" />

@@ -1,7 +1,7 @@
 from flask import request, jsonify, session, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from . import app, db, login_manager
-from .models import User, Center, Collection, Sale, Account, CenterAccountDetails
+from .models import User, Center, Collection, Sale, Account, CenterAccountDetails, Customer
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.exc import IntegrityError
 import random
@@ -156,7 +156,7 @@ def sale_to_dict(sale):
         'quantity': sale.quantity,
         'price': sale.price,
         'date': sale.date,
-        'center_id': sale.center_id
+        'customer_id': sale.customer_id
     }
 
 @app.route('/api/sales', methods=['GET', 'POST'])
@@ -168,11 +168,11 @@ def sales():
         return jsonify([sale_to_dict(s) for s in sales]), 200
     if request.method == 'POST':
         data = request.json
-        required = ['item', 'quantity', 'price', 'date', 'center_id']
+        required = ['item', 'quantity', 'price', 'date', 'customer_id']
         for field in required:
             if not data.get(field):
                 return error_response(f'{field} is required.', 400)
-        sale = Sale(item=data['item'], quantity=data['quantity'], price=data['price'], date=data['date'], center_id=data['center_id'])
+        sale = Sale(item=data['item'], quantity=data['quantity'], price=data['price'], date=data['date'], customer_id=data['customer_id'])
         db.session.add(sale)
         db.session.commit()
         return success_response('Sale created successfully.', sale_to_dict(sale), 201)
@@ -186,7 +186,7 @@ def update_sale(sale_id):
         return error_response('Sale not found.', 404)
     if request.method == 'PUT':
         data = request.json
-        required = ['item', 'quantity', 'price', 'date', 'center_id']
+        required = ['item', 'quantity', 'price', 'date', 'customer_id']
         for field in required:
             if not data.get(field):
                 return error_response(f'{field} is required.', 400)
@@ -194,13 +194,79 @@ def update_sale(sale_id):
         sale.quantity = data['quantity']
         sale.price = data['price']
         sale.date = data['date']
-        sale.center_id = data['center_id']
+        sale.customer_id = data['customer_id']
         db.session.commit()
         return success_response('Sale updated successfully.', sale_to_dict(sale), 200)
     if request.method == 'DELETE':
         db.session.delete(sale)
         db.session.commit()
         return success_response('Sale deleted successfully.', None, 200)
+
+# CRUD for Customers
+def customer_to_dict(customer):
+    return {
+        'id': customer.id,
+        'name': customer.name,
+        'gst_number': customer.gst_number,
+        'account_number': customer.account_number,
+        'ifsc_code': customer.ifsc_code,
+        'bank': customer.bank,
+        'address': customer.address,
+        'mobile_number': customer.mobile_number
+    }
+
+@app.route('/api/customers', methods=['GET', 'POST'])
+@login_required
+def customers():
+    """List or create customers."""
+    if request.method == 'GET':
+        customers = Customer.query.all()
+        return jsonify([customer_to_dict(c) for c in customers]), 200
+    if request.method == 'POST':
+        data = request.json
+        required = ['name', 'mobile_number']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
+        customer = Customer(
+            name=data['name'],
+            gst_number=data.get('gst_number'),
+            account_number=data.get('account_number'),
+            ifsc_code=data.get('ifsc_code'),
+            bank=data.get('bank'),
+            address=data.get('address'),
+            mobile_number=data['mobile_number']
+        )
+        db.session.add(customer)
+        db.session.commit()
+        return success_response('Customer created successfully.', customer_to_dict(customer), 201)
+
+@app.route('/api/customers/<int:customer_id>', methods=['PUT', 'DELETE'])
+@login_required
+def update_customer(customer_id):
+    """Update or delete customer."""
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        return error_response('Customer not found.', 404)
+    if request.method == 'PUT':
+        data = request.json
+        required = ['name', 'mobile_number']
+        for field in required:
+            if not data.get(field):
+                return error_response(f'{field} is required.', 400)
+        customer.name = data['name']
+        customer.gst_number = data.get('gst_number')
+        customer.account_number = data.get('account_number')
+        customer.ifsc_code = data.get('ifsc_code')
+        customer.bank = data.get('bank')
+        customer.address = data.get('address')
+        customer.mobile_number = data['mobile_number']
+        db.session.commit()
+        return success_response('Customer updated successfully.', customer_to_dict(customer), 200)
+    if request.method == 'DELETE':
+        db.session.delete(customer)
+        db.session.commit()
+        return success_response('Customer deleted successfully.', None, 200)
 
 # CRUD for Employees (Users)
 def user_to_dict(user):
@@ -210,7 +276,7 @@ def user_to_dict(user):
         'role': user.role,
         'MobileNumber': user.MobileNumber,
         'EmailID': user.EmailID,
-        'AccessControl': user.AccessControl
+        'AccessControl': user.get_access_list()  # Return as array for frontend
     }
 
 @app.route('/api/employees', methods=['GET', 'POST'])
@@ -236,9 +302,17 @@ def employees():
                 password=hashed_pw,
                 role=data['role'],
                 MobileNumber=data['MobileNumber'],
-                EmailID=data['EmailID'],
-                AccessControl=data.get('AccessControl', 'NA')
+                EmailID=data['EmailID']
             )
+            # Handle AccessControl as array
+            access_control = data.get('AccessControl', [])
+            if isinstance(access_control, list):
+                user.set_access_list(access_control)
+            elif isinstance(access_control, str):
+                user.set_access_list([access_control] if access_control else [])
+            else:
+                user.set_access_list([])
+            
             db.session.add(user)
             db.session.commit()
             users = User.query.all()
@@ -268,13 +342,41 @@ def update_employee(user_id):
         user.role = data['role']
         user.MobileNumber = data['MobileNumber']
         user.EmailID = data['EmailID']
-        user.AccessControl = data.get('AccessControl', user.AccessControl)
+        
+        # Handle AccessControl as array
+        access_control = data.get('AccessControl', [])
+        if isinstance(access_control, list):
+            user.set_access_list(access_control)
+        elif isinstance(access_control, str):
+            user.set_access_list([access_control] if access_control else [])
+        else:
+            user.set_access_list([])
+            
         db.session.commit()
         return success_response('Employee updated successfully.', user_to_dict(user), 200)
     if request.method == 'DELETE':
         db.session.delete(user)
         db.session.commit()
         return success_response('Employee deleted successfully.', None, 200)
+
+# Access Control Options endpoint
+@app.route('/api/access_control_options', methods=['GET'])
+@login_required
+def get_access_control_options():
+    """Get available access control options."""
+    if current_user.role != 'admin':
+        return error_response('Unauthorized', 403)
+    
+    options = [
+        'CENTER',
+        'COLLECTIONS', 
+        'SALES',
+        'EMPLOYEES',
+        'ACCOUNTS',
+        'ACCOUNT_DETAILS',
+        'FULL'
+    ]
+    return jsonify(options), 200
 
 # CRUD for Accounts
 def account_to_dict(account):
