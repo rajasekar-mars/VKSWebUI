@@ -441,11 +441,29 @@ const TABLES = {
   },
   sales: {
     columns: [
-      { key: 'item', label: 'Item' },
-      { key: 'quantity', label: 'Quantity' },
-      { key: 'price', label: 'Price' },
-      { key: 'date', label: 'Date' },
-      { key: 'customer_id', label: 'Customer ID' }
+      { 
+        key: 'item', 
+        label: 'Item',
+        type: 'select',
+        options: ['Milk', 'Cream', 'Butter', 'Others'],
+        default: 'Milk'
+      },
+      { key: 'quantity', label: 'Quantity', type: 'number' },
+      { key: 'price', label: 'Price', type: 'number' },
+      { 
+        key: 'date', 
+        label: 'Date',
+        type: 'date',
+        default: () => new Date().toISOString().split('T')[0]
+      },
+      { 
+        key: 'customer_id', 
+        label: 'Customer',
+        type: 'select',
+        displayKey: 'name',
+        valueKey: 'id',
+        endpoint: 'customers'
+      }
     ],
     keyFields: ['date', 'customer_id', 'item']
   },
@@ -511,6 +529,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
   const { darkMode } = React.useContext(DarkModeContext);
   const [rows, setRows] = React.useState([]);
   const [accessControlOptions, setAccessControlOptions] = React.useState([]);
+  const [customers, setCustomers] = React.useState([]);
   // Export helpers
   // Import helpers
   const [importing, setImporting] = React.useState(false);
@@ -739,6 +758,16 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
         })
         .catch(() => setAccessControlOptions([]));
     }
+    
+    // Fetch customers data if this is sales endpoint or any endpoint that needs customer dropdown
+    if (endpoint === 'sales' || columns.some(col => col.type === 'select' && col.endpoint === 'customers')) {
+      fetch(`${API}/customers`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          setCustomers(Array.isArray(data) ? data : []);
+        })
+        .catch(() => setCustomers([]));
+    }
   }, [endpoint]);
 
   const showToast = (msg, type = 'success') => {
@@ -889,6 +918,101 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
       showToast(msg, 'error');
       alert(msg);
     }
+  };
+
+  // Helper function to display cell values correctly
+  const displayCellValue = (col, value) => {
+    // Handle customer_id display as customer name
+    if (col.key === 'customer_id' && col.type === 'select' && col.endpoint === 'customers') {
+      const customer = customers.find(c => c.id === value);
+      return customer ? customer.name : value || 'N/A';
+    }
+    
+    // Handle other select fields
+    if (col.type === 'select' && col.options) {
+      return value || 'N/A';
+    }
+    
+    // Default display
+    return value || 'N/A';
+  };
+
+  // Helper function to render appropriate input type based on column configuration
+  const renderInput = (col, value, onChange) => {
+    const inputClassName = `border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`;
+    
+    // Handle different input types
+    if (col.type === 'date') {
+      return (
+        <input
+          type="date"
+          className={inputClassName}
+          value={value || (col.default && typeof col.default === 'function' ? col.default() : col.default) || ''}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
+    
+    if (col.type === 'number') {
+      return (
+        <input
+          type="number"
+          className={inputClassName}
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={`Enter ${col.label.toLowerCase()}`}
+        />
+      );
+    }
+    
+    if (col.type === 'select') {
+      // Handle customer dropdown
+      if (col.endpoint === 'customers') {
+        return (
+          <select
+            className={inputClassName}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+          >
+            <option value="">Select {col.label}</option>
+            {customers.map(customer => (
+              <option key={customer[col.valueKey]} value={customer[col.valueKey]}>
+                {customer[col.displayKey]}
+              </option>
+            ))}
+          </select>
+        );
+      }
+      
+      // Handle static options
+      if (col.options) {
+        return (
+          <select
+            className={inputClassName}
+            value={value || col.default || ''}
+            onChange={(e) => onChange(e.target.value)}
+          >
+            <option value="">Select {col.label}</option>
+            {col.options.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        );
+      }
+    }
+    
+    // Default text input
+    return (
+      <input
+        type="text"
+        className={inputClassName}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={col.key === 'password' ? 'Enter password' : `Enter ${col.label.toLowerCase()}`}
+      />
+    );
   };
 
   // Filtering logic
@@ -1047,7 +1171,21 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
             {canEdit && (
               <button 
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-                onClick={() => setAdding(true)}
+                onClick={() => {
+                  // Initialize newRow with default values
+                  const initialRow = {};
+                  columns.forEach(col => {
+                    if (col.default) {
+                      if (typeof col.default === 'function') {
+                        initialRow[col.key] = col.default();
+                      } else {
+                        initialRow[col.key] = col.default;
+                      }
+                    }
+                  });
+                  setNewRow(initialRow);
+                  setAdding(true);
+                }}
               >
                 <Plus size={18}/>
                 <span>Add New</span>
@@ -1191,19 +1329,14 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
                             darkMode={darkMode}
                           />
                         ) : (
-                          <input 
-                            className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} 
-                            value={editRow[col.key] || ''} 
-                            onChange={e => setEditRow({ ...editRow, [col.key]: e.target.value })} 
-                            placeholder={col.key === 'password' ? 'Enter new password' : `Enter ${col.label.toLowerCase()}`}
-                          />
+                          renderInput(col, editRow[col.key], (newValue) => setEditRow({ ...editRow, [col.key]: newValue }))
                         )
                       ) : (
                         col.key === 'AccessControl' && endpoint === 'employees' 
                           ? (Array.isArray(row[col.key]) 
                               ? row[col.key].join(', ') 
                               : (row[col.key] || '').toString())
-                          : row[col.key]
+                          : displayCellValue(col, row[col.key])
                       )}
                     </td>
                   ))}
@@ -1237,12 +1370,7 @@ function CrudTable({ endpoint, columns, canEdit = true }) {
                         darkMode={darkMode}
                       />
                     ) : (
-                      <input 
-                        className={`border p-2 rounded-md w-full focus:ring-2 ${darkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-400' : 'bg-white border-gray-300 focus:ring-blue-500'}`} 
-                        value={newRow[col.key] || ''} 
-                        onChange={e => setNewRow({ ...newRow, [col.key]: e.target.value })} 
-                        placeholder={col.key === 'password' ? 'Enter password' : `Enter ${col.label.toLowerCase()}`}
-                      />
+                      renderInput(col, newRow[col.key], (newValue) => setNewRow({ ...newRow, [col.key]: newValue }))
                     )}
                   </td>
                 ))}

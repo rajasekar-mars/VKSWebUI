@@ -575,10 +575,18 @@ def send_whatsapp_otp(admin_number, otp, employee_username):
         resp = requests.post(WHATSAPP_BOT_API_URL, json=payload, timeout=10)
         print(f"Debug: WhatsApp API response status: {resp.status_code}")
         print(f"Debug: WhatsApp API response body: {resp.text}")
-        return resp.status_code == 200
+        
+        if resp.status_code == 503:
+            # WhatsApp bot not ready, but don't fail the OTP process
+            print("Warning: WhatsApp bot not ready, but OTP generated successfully")
+            return {'success': False, 'reason': 'whatsapp_not_ready', 'otp': otp}
+        elif resp.status_code == 200:
+            return {'success': True, 'reason': 'sent'}
+        else:
+            return {'success': False, 'reason': 'api_error', 'otp': otp}
     except Exception as e:
         print('WhatsApp bot send error:', e)
-        return False
+        return {'success': False, 'reason': 'connection_error', 'otp': otp}
 
 # Patch: always use admin's number from DB
 import functools
@@ -589,7 +597,7 @@ def send_whatsapp_otp_to_admin(otp, employee_username):
     print(f"Debug: got admin number: {admin_number}")
     if not admin_number:
         print('Admin WhatsApp number not found!')
-        return False
+        return {'success': False, 'reason': 'no_admin_number', 'otp': otp}
     return send_whatsapp_otp(admin_number, otp, employee_username)
 
 @app.route('/api/login/request_otp', methods=['POST'])
@@ -602,23 +610,36 @@ def request_otp():
     if not user or not check_password_hash(user.password, data['password']):
         return error_response('Invalid credentials', 401)
     
-    # TEMPORARY: Allow all users to login directly while WhatsApp bot is being set up
-    login_user(user)
-    return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
+    if user.role == 'admin':
+        # Admin can login directly
+        login_user(user)
+        return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
     
-    # TODO: Uncomment this section once WhatsApp bot is working
-    # if user.role == 'admin':
-    #     # Admin can login directly
-    #     login_user(user)
-    #     return jsonify({'success': True, 'role': user.role, 'otp_required': False}), 200
-    # # Employee: generate OTP, send to admin
-    # otp = str(random.randint(100000, 999999))
-    # expires_at = time.time() + 60
-    # otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
-    # sent = send_whatsapp_otp_to_admin(otp, user.username)
-    # if not sent:
-    #     return error_response('Failed to send OTP to admin', 500)
-    # return jsonify({'success': True, 'otp_required': True, 'message': 'OTP sent to admin. Ask admin for OTP.'}), 200
+    # Employee: generate OTP, send to admin
+    otp = str(random.randint(100000, 999999))
+    expires_at = time.time() + 60
+    otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
+    
+    result = send_whatsapp_otp_to_admin(otp, user.username)
+    
+    if result['success']:
+        return jsonify({
+            'success': True, 
+            'otp_required': True, 
+            'message': 'OTP sent to admin via WhatsApp. Ask admin for the OTP.'
+        }), 200
+    elif result['reason'] == 'whatsapp_not_ready':
+        # WhatsApp bot not ready, but still allow OTP login with fallback
+        print(f"WhatsApp bot not ready. OTP for {user.username}: {result['otp']}")
+        return jsonify({
+            'success': True, 
+            'otp_required': True, 
+            'message': 'WhatsApp bot is initializing. OTP generated but not sent via WhatsApp. Check console for OTP or wait for WhatsApp bot to be ready.',
+            'fallback_otp': result['otp']  # For debugging - remove in production
+        }), 200
+    else:
+        # Complete failure
+        return error_response(f'Failed to send OTP to admin: {result["reason"]}', 500)
 
 @app.route('/api/login/verify_otp', methods=['POST'])
 def verify_otp():
