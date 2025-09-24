@@ -126,8 +126,19 @@ pip install psycopg2-binary gunicorn
 
 echo "🗄️ Setting up PostgreSQL database..."
 sudo -u postgres psql << EOF
-CREATE DATABASE IF NOT EXISTS $DB_NAME;
-CREATE USER IF NOT EXISTS $DB_USER WITH PASSWORD '$DB_PASS';
+-- Create database if it doesn't exist
+SELECT 'CREATE DATABASE $DB_NAME' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+
+-- Create user if it doesn't exist
+DO \$\$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '$DB_USER') THEN
+      CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';
+   END IF;
+END
+\$\$;
+
+-- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 \q
 EOF
@@ -141,28 +152,11 @@ sudo chown -R www-data:www-data /var/www/html
 sudo chmod -R 755 /var/www/html
 
 echo "⚙️ Configuring Nginx..."
+# First create HTTP-only configuration
 sudo tee $NGINX_SITES/$DOMAIN << 'EOF'
 server {
     listen 80;
     server_name littlesonagrofoods.com www.littlesonagrofoods.com;
-    
-    # Redirect to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name littlesonagrofoods.com www.littlesonagrofoods.com;
-    
-    # SSL Configuration (will be handled by Certbot)
-    # ssl_certificate /etc/letsencrypt/live/littlesonagrofoods.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/littlesonagrofoods.com/privkey.pem;
-    
-    # Security headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     
     # Static files (React frontend)
     location / {
@@ -273,8 +267,14 @@ pm2 save
 pm2 startup
 
 echo "🔒 Setting up SSL Certificate..."
-sudo snap install --classic certbot
-sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
+# Install certbot if not already installed
+if ! command -v certbot &> /dev/null; then
+    sudo snap install --classic certbot
+    sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+fi
+
+# Get SSL certificate and automatically configure Nginx
+sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect
 
 echo "🔍 Final system check..."
 echo "Checking services..."
