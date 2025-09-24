@@ -142,6 +142,55 @@ def health_check():
         'environment': config_name
     })
 
+# OTP-based login endpoints (to match frontend expectations)
+@app.route('/api/login/request_otp', methods=['POST'])
+def request_otp():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    user = User.query.filter_by(username=username).first()
+    
+    if user and check_password_hash(user.password_hash, password):
+        # For simplicity, we'll use a fixed OTP instead of sending SMS
+        # In production, you'd generate a random OTP and send via SMS/email
+        session['pending_user_id'] = user.id
+        session['otp'] = '123456'  # Fixed OTP for demo
+        
+        return jsonify({
+            'success': True,
+            'message': 'OTP sent successfully',
+            'otp': '123456'  # In production, don't return OTP in response!
+        })
+    
+    return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+
+@app.route('/api/login/verify_otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json()
+    otp = data.get('otp')
+    
+    if session.get('otp') == otp and session.get('pending_user_id'):
+        user_id = session.pop('pending_user_id')
+        session.pop('otp')
+        
+        user = User.query.get(user_id)
+        if user:
+            login_user(user)
+            return jsonify({
+                'success': True,
+                'message': 'Login successful',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': user.role
+                }
+            })
+    
+    return jsonify({'success': False, 'message': 'Invalid or expired OTP'}), 401
+
+# Keep the simple login for direct API access
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json()

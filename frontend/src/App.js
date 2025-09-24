@@ -9,7 +9,7 @@ import {
   Calendar, Clock, ArrowRight, Star, ChevronRight, Menu, Home, Settings
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+const API = '/api';
 
 // Dark mode context
 const DarkModeContext = React.createContext();
