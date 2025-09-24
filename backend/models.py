@@ -2,13 +2,18 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
 
-# Global db variable
-db = None
+# Global variables to store models
+User = None
+Center = None
+Customer = None
+Collection = None
+Sale = None
+Account = None
+CenterAccountDetails = None
 
-def init_models(database):
+def init_models(db):
     """Initialize models with the database instance"""
-    global db
-    db = database
+    global User, Center, Customer, Collection, Sale, Account, CenterAccountDetails
     
     # Define models here after db is initialized
     class User(UserMixin, db.Model):
@@ -84,6 +89,15 @@ def init_models(database):
         ROUTE = db.Column(db.String(100), nullable=True)
         OPENING_BALANCE = db.Column(db.Float, nullable=False, default=0.0)
         AS_ON_DATE = db.Column(db.Date, nullable=True)
+    
+    # Store globally for import
+    globals()['User'] = User
+    globals()['Center'] = Center
+    globals()['Customer'] = Customer
+    globals()['Collection'] = Collection
+    globals()['Sale'] = Sale
+    globals()['Account'] = Account
+    globals()['CenterAccountDetails'] = CenterAccountDetails
     
     # Return the models so they can be imported
     return User, Center, Customer, Collection, Sale, Account, CenterAccountDetails
