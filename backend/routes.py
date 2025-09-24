@@ -610,55 +610,67 @@ def request_otp():
     if not user or not check_password_hash(user.password, data['password']):
         return error_response('Invalid credentials', 401)
     
-    if user.role == 'admin':
-        # Admin can login directly
-        login_user(user)
-        return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
+    # TEMPORARILY DISABLED: WhatsApp OTP validation
+    # Both admin and employee can login directly with valid credentials
+    login_user(user)
+    print(f"🔓 TEMPORARY: Direct login enabled for {user.username} (role: {user.role})")
+    return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
     
-    # Employee: generate OTP, send to admin
-    otp = str(random.randint(100000, 999999))
-    expires_at = time.time() + 60
-    otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
-    
-    result = send_whatsapp_otp_to_admin(otp, user.username)
-    
-    if result['success']:
-        return jsonify({
-            'success': True, 
-            'otp_required': True, 
-            'message': 'OTP sent to admin via WhatsApp. Ask admin for the OTP.'
-        }), 200
-    elif result['reason'] == 'whatsapp_not_ready':
-        # WhatsApp bot not ready, but still allow OTP login with fallback
-        print(f"WhatsApp bot not ready. OTP for {user.username}: {result['otp']}")
-        return jsonify({
-            'success': True, 
-            'otp_required': True, 
-            'message': 'WhatsApp bot is initializing. OTP generated but not sent via WhatsApp. Check console for OTP or wait for WhatsApp bot to be ready.',
-            'fallback_otp': result['otp']  # For debugging - remove in production
-        }), 200
-    else:
-        # Complete failure
-        return error_response(f'Failed to send OTP to admin: {result["reason"]}', 500)
+    # ORIGINAL OTP CODE (TEMPORARILY DISABLED):
+    # if user.role == 'admin':
+    #     # Admin can login directly
+    #     login_user(user)
+    #     return jsonify({'success': True, 'role': user.role, 'username': user.username, 'otp_required': False}), 200
+    # 
+    # # Employee: generate OTP, send to admin
+    # otp = str(random.randint(100000, 999999))
+    # expires_at = time.time() + 60
+    # otp_store[user.username] = {'otp': otp, 'expires_at': expires_at}
+    # 
+    # # TEMPORARY: Show OTP directly in response for testing
+    # print(f"🔑 OTP for {user.username}: {otp}")
+    # 
+    # result = send_whatsapp_otp_to_admin(otp, user.username)
+    # 
+    # if result['success']:
+    #     return jsonify({
+    #         'success': True, 
+    #         'otp_required': True, 
+    #         'message': 'OTP sent to admin via WhatsApp. Ask admin for the OTP.',
+    #         'debug_otp': otp  # REMOVE THIS IN PRODUCTION
+    #     }), 200
+    # else:
+    #     # WhatsApp failed, but still allow OTP login
+    #     print(f"⚠️ WhatsApp failed, but OTP is: {otp}")
+    #     return jsonify({
+    #         'success': True, 
+    #         'otp_required': True, 
+    #         'message': f'WhatsApp bot unavailable. OTP for testing: {otp}',
+    #         'debug_otp': otp  # REMOVE THIS IN PRODUCTION
+    #     }), 200
 
 @app.route('/api/login/verify_otp', methods=['POST'])
 def verify_otp():
     """Step 2: Employee submits username + OTP. If valid, login."""
-    data = request.json
-    if not data or 'username' not in data or 'otp' not in data:
-        return error_response('Missing username or otp', 400)
-    user = User.query.filter_by(username=data['username']).first()
-    if not user or user.role == 'admin':
-        return error_response('Invalid user', 401)
-    otp_entry = otp_store.get(user.username)
-    if not otp_entry:
-        return error_response('No OTP requested or expired', 400)
-    if time.time() > otp_entry['expires_at']:
-        otp_store.pop(user.username, None)
-        return error_response('OTP expired', 400)
-    if data['otp'] != otp_entry['otp']:
-        return error_response('Invalid OTP', 401)
-    # OTP valid
-    otp_store.pop(user.username, None)
-    login_user(user)
-    return jsonify({'success': True, 'role': user.role, 'username': user.username}), 200
+    # TEMPORARILY DISABLED: OTP verification not needed
+    return error_response('OTP verification temporarily disabled. Use direct login instead.', 400)
+    
+    # ORIGINAL OTP VERIFICATION CODE (TEMPORARILY DISABLED):
+    # data = request.json
+    # if not data or 'username' not in data or 'otp' not in data:
+    #     return error_response('Missing username or otp', 400)
+    # user = User.query.filter_by(username=data['username']).first()
+    # if not user or user.role == 'admin':
+    #     return error_response('Invalid user', 401)
+    # otp_entry = otp_store.get(user.username)
+    # if not otp_entry:
+    #     return error_response('No OTP requested or expired', 400)
+    # if time.time() > otp_entry['expires_at']:
+    #     otp_store.pop(user.username, None)
+    #     return error_response('OTP expired', 400)
+    # if data['otp'] != otp_entry['otp']:
+    #     return error_response('Invalid OTP', 401)
+    # # OTP valid
+    # otp_store.pop(user.username, None)
+    # login_user(user)
+    # return jsonify({'success': True, 'role': user.role, 'username': user.username}), 200
