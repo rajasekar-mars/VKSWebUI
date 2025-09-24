@@ -26,8 +26,10 @@ login_manager.login_view = 'login'
 # Enable CORS
 CORS(app, origins=['https://littlesonagrofoods.com', 'https://www.littlesonagrofoods.com'])
 
-# Import models
-from models import User, Center, Collection, Sale, Employee, Account
+# Import and initialize models
+import models
+models.init_db(db)
+from models import User, Center, Collection, Sale, Account
 
 @login_manager.user_loader
 def load_user(user_id):

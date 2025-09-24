@@ -1,13 +1,22 @@
-from . import db
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from datetime import datetime
+
+# This will be initialized by the app
+db = None
+
+def init_db(database):
+    global db
+    db = database
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
-    password = db.Column(db.String(150), nullable=False)
+    password_hash = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # 'admin' or 'employee'
-    MobileNumber = db.Column(db.Integer, nullable=False)
-    EmailID = db.Column(db.String(150), nullable=False)
+    MobileNumber = db.Column(db.Integer, nullable=True)
+    EmailID = db.Column(db.String(150), nullable=True)
     AccessControl = db.Column(db.String(500), nullable=False, default="")  # Comma-separated values
     
     def get_access_list(self):
