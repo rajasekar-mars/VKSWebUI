@@ -190,7 +190,7 @@ def verify_otp():
     
     return jsonify({'success': False, 'message': 'Invalid or expired OTP'}), 401
 
-# Keep the simple login for direct API access
+# Keep the simple login for frontend (no OTP required for now)
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json()
@@ -208,7 +208,8 @@ def api_login():
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'role': user.role
+                'role': user.role,
+                'access_control': getattr(user, 'AccessControl', '').split(',') if hasattr(user, 'AccessControl') and user.AccessControl else []
             }
         })
     

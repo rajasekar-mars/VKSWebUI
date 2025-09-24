@@ -46,30 +46,31 @@ function Login({ onLogin }) {
     e.preventDefault();
     setError('');
     setWaiting(true);
-    const res = await fetch(`${API}/login/request_otp`, {
+    
+    // Use direct login instead of OTP for now
+    const res = await fetch(`${API}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ username, password })
     });
+    
     setWaiting(false);
     if (res.ok) {
       const data = await res.json();
-      if (data.otp_required) {
-        setStep(2);
-        setTimer(60);
+      if (data.success) {
+        // Direct login successful - no OTP required
+        onLogin({ 
+          role: data.user.role, 
+          username: data.user.username, 
+          access_control: data.user.access_control || [] 
+        });
       } else {
-        // Fetch full user data including access control
-        const userRes = await fetch(`${API}/user`, { credentials: 'include' });
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          onLogin({ role: userData.role, username: userData.username, access_control: userData.access_control });
-        } else {
-          onLogin({ role: data.role, username: data.username, access_control: [] });
-        }
+        setError(data.message || 'Login failed');
       }
     } else {
-      setError('Invalid credentials');
+      const errorData = await res.json().catch(() => ({}));
+      setError(errorData.message || 'Invalid credentials');
     }
   };
 
